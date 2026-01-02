@@ -1,0 +1,317 @@
+"""
+Core training functionality for AutoAUC.
+"""
+
+import logging
+import torch
+import libauc
+import numpy as np
+from libauc.sampler import DualSampler
+import os
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, Mapping
+from torch.utils.data import Dataset
+import importlib
+
+from ..config.args import TrainingArguments, _OPTIMIZERS, _LOSSES
+from .callbacks import CallbackHandler, TrainerCallback, TrainerState
+from ..models.architectures import get_loss, get_optimizer
+
+logger = logging.getLogger(__name__)
+
+
+class Trainer:
+    """
+    Main trainer class for AutoAUC framework.
+    
+    Handles model training, evaluation, and callback management.
+    """
+    
+    def __init__(self, 
+                 model, 
+                 train_args: TrainingArguments, 
+                 train_dataset: Dataset, 
+                 eval_dataset: Optional[Mapping[str, Dataset]] = None, 
+                 metric: Optional[Callable[[torch.Tensor, torch.Tensor], Mapping[str, float]]] = None,
+                 callbacks: Optional[List[TrainerCallback]] = None):
+        """
+        Initialize the trainer.
+        
+        Args:
+            model: The neural network model to train
+            train_args: Training configuration arguments
+            train_dataset: Training dataset
+            eval_dataset: Optional evaluation datasets
+            metric: Evaluation metric function
+            callbacks: Optional list of training callbacks
+        """
+        self.args = train_args
+        self.train_dataset = train_dataset
+        self.eval_dataset = eval_dataset
+        self.state = TrainerState()
+        self.state.total_epoch = self.args.epochs
+
+        self.model = model
+        
+        # Setup data loaders
+        self.sampler, self.trainloader = self._get_train_dataloader(self.args)
+        self.evalloaders = {}
+        if self.eval_dataset:
+            for name, dataset in self.eval_dataset.items():
+                self.evalloaders[name] = self._get_eval_dataloader(dataset, self.args)
+        
+        # Calculate dataset statistics
+        self.data_len = self.sampler.pos_len + self.sampler.neg_len
+        self.pos_len = self.sampler.pos_len
+        self.neg_len = self.sampler.neg_len
+
+        # Setup optimizer and loss
+        self.loss_fn, self.optimizer = self._construct_optimizer_and_loss(model, train_args)
+        
+        # Setup metric and callbacks
+        self.metric = metric
+        if callbacks is None:
+            self.callback_handler = CallbackHandler([], self.model, self.optimizer, self.loss_fn)
+        else:
+            self.callback_handler = CallbackHandler(callbacks, self.model, self.optimizer, self.loss_fn)
+        self.callback_handler.on_init_end(self.args, self.state)
+
+    def add_callback(self, callback):
+        """Add a callback to the trainer."""
+        self.callback_handler.add_callback(callback)
+    
+    def _construct_optimizer_and_loss(self, model, train_args: TrainingArguments):
+        """Construct optimizer and loss function based on configuration."""
+        # Setup loss function
+        loss_cls = get_loss(train_args.loss)
+        
+        if train_args.loss in ["APLoss", "pAUC_DRO_Loss", "tpAUC_KL_Loss"]:
+            loss_fn = loss_cls(data_len=self.data_len, **train_args.loss_kwargs)
+        elif train_args.loss in ["pAUC_CVaR_Loss"]:
+            loss_fn = loss_cls(data_len=self.data_len, pos_len=self.pos_len, **train_args.loss_kwargs)
+        else:
+            loss_fn = loss_cls(**train_args.loss_kwargs)
+
+        # Setup optimizer
+        opt_cls = get_optimizer(train_args.optimizer)
+        optimizer = opt_cls(model.parameters(), loss_fn=loss_fn, **train_args.optimizer_kwargs)
+    
+        return loss_fn, optimizer
+
+    def _get_train_dataloader(self, train_args: TrainingArguments):
+        """Create training data loader with dual sampling."""
+        sampler = DualSampler(self.train_dataset, train_args.batch_size, sampling_rate=train_args.sampling_rate)
+        trainloader = torch.utils.data.DataLoader(
+            self.train_dataset, 
+            batch_size=train_args.batch_size, 
+            sampler=sampler, 
+            num_workers=train_args.num_workers
+        )
+        return sampler, trainloader
+
+    def _get_eval_dataloader(self, dataset, train_args: TrainingArguments):
+        """Create evaluation data loader."""
+        evalloader = torch.utils.data.DataLoader(
+            dataset, 
+            batch_size=train_args.eval_batch_size, 
+            shuffle=False, 
+            num_workers=train_args.num_workers
+        )
+        return evalloader
+    
+    def train(self):
+        """
+        Main training loop.
+        
+        Returns:
+            List of training logs with metrics for each epoch
+        """
+        self.callback_handler.on_train_begin(self.args, self.state)
+        train_log = []
+        
+        model = self.model.cuda()
+        self.loss_fn = self.loss_fn.cuda()
+
+        # Load checkpoint if resuming
+        if self.args.resume_from_checkpoint:
+            latest_checkpoint = self.get_latest_checkpoint(self.args.output_path)
+            if latest_checkpoint:
+                checkpoint = self.load_checkpoint(latest_checkpoint)
+                logger.info(f"Resuming training from epoch {self.state.epoch}")
+            else:
+                logger.info("No checkpoint found in output folder, starting from scratch")
+        
+
+        for epoch in range(self.state.epoch, self.args.epochs):
+            self.callback_handler.on_epoch_begin(self.args, self.state)
+            train_loss = []
+            model.train()
+            
+            # Training loop
+            for data, targets, index in self.trainloader:
+                self.callback_handler.on_step_begin(self.args, self.state)
+
+                data, targets, index = data.cuda(), targets.cuda(), index.cuda()
+                y_pred = model(data)
+                y_pred = torch.sigmoid(y_pred)
+                
+                # Compute loss
+                if isinstance(self.loss_fn, libauc.losses.losses.CrossEntropyLoss):
+                    loss = self.loss_fn(y_pred, targets)
+                else:
+                    loss = self.loss_fn(y_pred, targets, index=index)
+                
+                # Optimizer step
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+                train_loss.append(loss.item())
+
+                self.callback_handler.on_step_end(self.args, self.state)
+
+            # Evaluation
+            model.eval()
+            train_loss = np.mean(train_loss)
+            metrics, test_true, test_pred = self.evaluate_loop(model)
+            metrics["epoch"] = epoch
+            metrics["lr"] = self.optimizer.lr
+            metrics["loss"] = train_loss
+            train_log.append(metrics)
+            self.callback_handler.on_epoch_end(self.args, self.state, metrics=metrics, test_true=test_true, test_pred=test_pred)
+            
+            # Save checkpoint periodically
+            if (epoch + 1) % self.args.save_checkpoint_every == 0:
+                checkpoint_path = os.path.join(self.args.output_path, f"epoch_{epoch + 1}.pt")
+                self.save_checkpoint(checkpoint_path)
+
+        self.callback_handler.on_train_end(self.args, self.state)
+        
+        # Save final model
+        final_model_path = os.path.join(self.args.output_path, f"epoch_{self.args.epochs}.pt")
+        self.save_checkpoint(final_model_path)
+
+        return train_log
+
+    def evaluate(self, loader, model):
+        """
+        Evaluate model on a given data loader.
+        
+        Args:
+            loader: Data loader for evaluation
+            model: Model to evaluate
+            
+        Returns:
+            Tuple of (dictionary of evaluation metrics, test_true, test_pred)
+        """
+        result = {}
+        test_pred_list = []
+        test_true_list = []
+        
+        for test_data, test_targets, _ in loader:
+            test_data = test_data.cuda()
+            test_pred = model(test_data)
+            # Apply sigmoid to convert logits to probabilities
+            test_pred = torch.sigmoid(test_pred)
+            test_pred_list.append(test_pred.cpu().detach().numpy())
+            test_true_list.append(test_targets.numpy())
+            
+        test_true = np.concatenate(test_true_list)
+        test_pred = np.concatenate(test_pred_list)
+        # Flatten if needed (for binary classification)
+        if test_pred.ndim > 1:
+            test_pred = test_pred.flatten()
+        if test_true.ndim > 1:
+            test_true = test_true.flatten()
+        result = self.metric(test_true, test_pred)
+        return result, test_true, test_pred
+
+    def evaluate_loop(self, model):
+        """
+        Evaluate model on all evaluation datasets.
+        
+        Args:
+            model: Model to evaluate
+            
+        Returns:
+            Tuple of (dictionary of metrics from all evaluation datasets, test_true, test_pred)
+            test_true and test_pred are from the first evaluation dataset, or None if no eval datasets
+        """
+        metrics = {}
+        test_true = None
+        test_pred = None
+        
+        if not self.evalloaders:
+            self.callback_handler.on_evaluate(self.args, self.state)
+            return metrics, test_true, test_pred
+        
+        for name, loader in self.evalloaders.items():
+            result, eval_true, eval_pred = self.evaluate(loader, model)
+            for key, value in result.items():
+                metrics[f"{name}_{key}"] = value
+            
+            # Store test_true and test_pred from the first evaluation dataset
+            if test_true is None:
+                test_true = eval_true
+                test_pred = eval_pred
+        
+        self.callback_handler.on_evaluate(self.args, self.state)
+        return metrics, test_true, test_pred
+
+    def save_checkpoint(self, checkpoint_path: str):
+        # Ensure checkpoint directory exists
+        os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+        
+        checkpoint = {
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'loss_fn_state_dict': self.loss_fn.state_dict(),
+            'loss_fn': self.loss_fn,
+            'state': self.state,
+            'args': self.args,
+        }
+        
+        # Save checkpoint
+        torch.save(checkpoint, checkpoint_path)
+        logger.info(f"Checkpoint saved to {checkpoint_path}")
+
+    def load_checkpoint(self, checkpoint_path: str):
+        if not os.path.exists(checkpoint_path):
+            raise FileNotFoundError(f"Checkpoint file not found: {checkpoint_path}")
+        
+        logger.info(f"Loading checkpoint from {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+                
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        if hasattr(self.loss_fn, 'a') and hasattr(self.loss_fn, 'b') and hasattr(self.loss_fn, 'alpha'):
+            print('Loading loss_fn_state_dict')
+            self.loss_fn.load_state_dict(checkpoint['loss_fn_state_dict'])
+        else:
+            print('Loading loss_fn')
+            self.loss_fn = checkpoint['loss_fn']
+        
+        self.state = checkpoint['state']
+        # have to check if the args are the same as the current args
+        self.args = checkpoint['args']
+                
+        logger.info(f"Checkpoint loaded successfully. Resuming from epoch {self.state.epoch}")
+        return checkpoint
+
+    def get_latest_checkpoint(self, output_path: str):
+        if not os.path.exists(output_path):
+            return None
+        
+        checkpoint_files = []
+        for file in os.listdir(output_path):
+            if file.startswith("epoch_") and file.endswith(".pt"):
+                try:
+                    epoch_num = int(file.split("_")[1].split(".")[0])
+                    checkpoint_files.append((epoch_num, os.path.join(output_path, file)))
+                except (ValueError, IndexError):
+                    continue
+        
+        if not checkpoint_files:
+            return None
+        
+        # Sort by epoch number and return the latest
+        checkpoint_files.sort(key=lambda x: x[0])
+        return checkpoint_files[-1][1]
