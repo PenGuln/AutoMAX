@@ -1,8 +1,8 @@
-# AutoAUC CLI Usage Guide
+# AutoMAX CLI Usage Guide
 
 ## Quick Start
 
-The AutoAUC CLI can be accessed through the main entry point:
+The AutoMAX CLI can be accessed through the main entry point:
 
 ```bash
 python main.py --interface cli [OPTIONS]
@@ -90,7 +90,7 @@ python main.py --interface cli --target TPAUC --max_fpr 0.3 --min_tpr 0.7
 | `--num_workers` | int | 0 | Number of data loader workers |
 | `--output_path` | str | ./output | Output directory |
 
-### AutoAUC Configuration
+### AutoMAX Configuration
 
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
