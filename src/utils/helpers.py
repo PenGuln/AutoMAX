@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 def create_auto_auc_components(train_args, n_trials, n_configs, model_name=None, 
                               pretrained=False, model_path=None, train_dataset=None, 
-                              eval_dataset=None, callback_class=None, app=None, session_id=None):
+                              eval_dataset=None, callback_class=None, app=None, session_id=None,
+                              wandb_project=None, wandb_experiment='experiment'):
     """
     Helper function to create AutoAUC components.
     
@@ -32,6 +33,8 @@ def create_auto_auc_components(train_args, n_trials, n_configs, model_name=None,
         eval_dataset (Dataset, optional): Evaluation dataset
         callback_class (class, optional): Callback class to use (GuiCallback or CLICallback)
         app (object, optional): App instance for GuiCallback
+        wandb_project (str, optional): wandb project name; if set with CLICallback, metrics are logged to wandb
+        wandb_experiment (str, optional): Base experiment name for wandb; each trial run is named {name}_{trial_number}
     
     Returns:
         tuple: (metric, auto_config, model, trainer, tuner)
@@ -105,6 +108,8 @@ def create_auto_auc_components(train_args, n_trials, n_configs, model_name=None,
             elif callback_class.__name__ == 'SessionCallback' and app is not None and session_id is not None:
                 # For SessionCallback, app is the session_manager and session_id is provided
                 callbacks = [callback_class(app, session_id, auto_config)]
+            elif callback_class.__name__ == 'CLICallback' and wandb_project is not None:
+                callbacks = [callback_class(auto_config, wandb_project=wandb_project, wandb_experiment=wandb_experiment)]
             else:
                 callbacks = [callback_class(auto_config)]
         else:

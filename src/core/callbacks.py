@@ -217,15 +217,27 @@ class DefaultCallback(TrainerCallback):
 
 
 class CLICallback(TrainerCallback):
-    """Callback for command-line interface with detailed logging."""
+    """Callback for command-line interface with detailed logging and optional wandb."""
     
-    def __init__(self, auto_config: AutoAUCConfigration) -> None:
+    def __init__(self, auto_config: AutoAUCConfigration, wandb_project: Optional[str] = None,
+                 wandb_experiment: str = "experiment") -> None:
         self.tot_trials = auto_config.n_trials
         self.cur_trial = 0
         self.best_metric = float('-inf')
+        self._wandb_project = wandb_project
+        self._wandb_experiment = wandb_experiment
+        self._use_wandb = wandb_project is not None
     
     def on_train_begin(self, args: TrainingArguments, state: TrainerState, **kwargs):
         """Event called at the beginning of training."""
+        if self._use_wandb:
+            try:
+                import wandb
+                run_name = f"{self._wandb_experiment}_{self.cur_trial + 1}"
+                wandb.init(project=self._wandb_project, name=run_name, reinit=True)
+            except ImportError:
+                logger.warning("wandb not installed; skipping wandb logging")
+                self._use_wandb = False
         print(f"\nStarting training round {self.cur_trial + 1}/{self.tot_trials}")
         print(f"Epochs: {state.total_epoch}")
         print(f"Batch size: {args.batch_size}")
@@ -242,7 +254,12 @@ class CLICallback(TrainerCallback):
     def on_epoch_end(self, args: TrainingArguments, state: TrainerState, **kwargs):
         """Event called at the end of an epoch."""
         metrics = kwargs.get("metrics", {})
-        
+        if self._use_wandb:
+            try:
+                import wandb
+                wandb.log(metrics)
+            except ImportError:
+                pass
         # Get the main metric value (excluding 'target' and 'epoch')
         statement = f"Epoch {state.epoch + 1}/{state.total_epoch} | Loss: {metrics.get('loss', 0):.4f} | "
         for k, v in metrics.items():
@@ -260,6 +277,12 @@ class CLICallback(TrainerCallback):
 
     def on_train_end(self, args: TrainingArguments, state: TrainerState, **kwargs):
         """Event called at the end of training."""
+        if self._use_wandb:
+            try:
+                import wandb
+                wandb.finish()
+            except ImportError:
+                pass
         self.cur_trial += 1
         print("\n" + "=" * 50)
         print(f"Training round {self.cur_trial}/{self.tot_trials} completed")

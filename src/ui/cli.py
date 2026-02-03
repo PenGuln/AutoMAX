@@ -14,6 +14,18 @@ from ..utils.helpers import create_auto_auc_components
 logger = logging.getLogger(__name__)
 
 
+def str_to_bool(v):
+    """Convert string to boolean for argparse."""
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 def load_config_from_file_or_string(config_input):
     """
     Load configuration from a JSON file path or JSON string.
@@ -109,6 +121,10 @@ def parse_args(args=None):
                        help='Learning rate decay epochs as JSON list')
     parser.add_argument('--num_workers', type=int, default=0, help='Number of data loader workers')
     parser.add_argument('--output_path', type=str, default='./output', help='Output directory')
+    parser.add_argument('--resume_from_checkpoint', type=str_to_bool, default=False,
+                       help='Resume training from checkpoint if available (default: False)')
+    parser.add_argument('--save_checkpoint_every', type=int, default=5, 
+                       help='Save checkpoint every N epochs')
     
     # AutoAUC configuration
     parser.add_argument('--n_trials', type=int, default=5, help='Number of trials')
@@ -125,6 +141,12 @@ def parse_args(args=None):
                        help='Path to JSON file or JSON string for optimizer config override')
     parser.add_argument('--loss_config', type=str, default=None,
                        help='Path to JSON file or JSON string for loss config override')
+    
+    # Weights & Biases (wandb) arguments
+    parser.add_argument('--wandb_project', type=str, default='AutoX',
+                       help='wandb project name; if set, metrics are logged to wandb')
+    parser.add_argument('--wandb_experiment', type=str, default=None,
+                       help='Base experiment name for wandb; each trial is logged as {name}_{trial_number}. Default: basename of output_path')
     
     return parser.parse_args(args)
 
@@ -198,6 +220,8 @@ def main(args=None, optimizer_config=None, loss_config=None):
         "num_workers": parsed_args.num_workers,
         "output_path": parsed_args.output_path,
         "target": parsed_args.target,
+        "resume_from_checkpoint": parsed_args.resume_from_checkpoint,
+        "save_checkpoint_every": parsed_args.save_checkpoint_every,
     }
     
     # Add target-specific parameters
@@ -206,6 +230,11 @@ def main(args=None, optimizer_config=None, loss_config=None):
     if parsed_args.target == 'TPAUC':
         train_args["min_tpr"] = parsed_args.min_tpr
     
+    # Default wandb_experiment to basename of output_path when using wandb
+    wandb_experiment = parsed_args.wandb_experiment
+    if wandb_experiment is None:
+        wandb_experiment = Path(parsed_args.output_path).name or "experiment"
+
     # Create components
     _, _, _, _, tuner = create_auto_auc_components(
         train_args=train_args,
@@ -216,7 +245,9 @@ def main(args=None, optimizer_config=None, loss_config=None):
         model_path=parsed_args.model_path,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        callback_class=CLICallback
+        callback_class=CLICallback,
+        wandb_project=parsed_args.wandb_project,
+        wandb_experiment=wandb_experiment,
     )
     
     # Start optimization
