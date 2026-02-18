@@ -68,8 +68,7 @@ class AutoMAX:
         print(f"Training with configuration: {space}")
         trainer = self.trainer(space=space)
         train_log = trainer.train()
-        print(train_log)
-        score = max([v['metrics'][-1][self.target] for v in train_log])
+        score = max([v['metrics'][0][self.target] for v in train_log])
         print(f"Score: {score}")
 
         if score > self.best_score:
