@@ -111,13 +111,13 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             transforms.ToTensor(),
             transforms.Normalize(mean=[.5], std=[.5])
         ])
-        train_dataset = IndexedDataset(PneumoniaMNIST(split='train', transform=train_transform, download=True))
+        train_dataset = IndexedDataset(PneumoniaMNIST(split='train', transform=train_transform, download=True, root="./data"))
         eval_datasets = []
         for split in splits:
             if split == 'val':
-                eval_datasets.append(IndexedDataset(PneumoniaMNIST(split='val',   transform=test_transform,  download=True)))
+                eval_datasets.append(IndexedDataset(PneumoniaMNIST(split='val',   transform=test_transform,  download=True, root="./data")))
             elif split == 'test':
-                eval_datasets.append(IndexedDataset(PneumoniaMNIST(split='test',  transform=test_transform,  download=True)))
+                eval_datasets.append(IndexedDataset(PneumoniaMNIST(split='test',  transform=test_transform,  download=True, root="./data")))
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
