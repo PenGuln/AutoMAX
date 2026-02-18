@@ -209,7 +209,7 @@ class Trainer:
 
         # Load checkpoint if resuming
         if self.args.resume_from_checkpoint:
-            latest_checkpoint = self.get_latest_checkpoint(self.args.output_path)
+            latest_checkpoint = self.get_latest_checkpoint(os.path.join(self.args.output_path, self.args.experiment_name))
             if latest_checkpoint:
                 checkpoint = self.load_checkpoint(latest_checkpoint)
                 logger.info(f"Resuming training from epoch {self.state.epoch}")
