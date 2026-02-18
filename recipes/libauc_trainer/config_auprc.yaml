@@ -15,6 +15,7 @@ model:
   pretrained: true
   pretrained_path: D:\Code\AutoAUC_demo\LibAUC\ckpts\ce_pretrained_model_soap.pth
   num_classes: 1          # binary classification
+  in_channels: 3
 
 # ----------------------------------------------------------
 # Evaluation metrics
@@ -28,7 +29,7 @@ metrics:
 training:
   # --- Experiment tracking ---
   project_name: libauc
-  experiment_name: APLoss_cifar10
+  experiment_name: APLoss_cifar10_default
 
   # --- Reproducibility ---
   SEED: 2023              # exact seed from tutorial: set_all_seeds(2023)
@@ -70,12 +71,3 @@ training:
   save_checkpoint_every: 10
 
 # python .\plot3.py --project libauc --run_id thhvnha8
-
-automax:
-  deterministic: true
-  n_trials: 5
-  n_configs: 1
-  SEED: 42
-  name: n5_APLoss_cifar10
-  output_path: ./automax_output
-  overwrite: true

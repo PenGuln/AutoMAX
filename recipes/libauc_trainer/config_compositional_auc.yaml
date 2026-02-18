@@ -1,0 +1,79 @@
+# ----------------------------------------------------------
+# Dataset
+# ----------------------------------------------------------
+dataset:
+  name: cifar10
+  # ds1 = train split (eval mode, no augmentation)
+  # ds2 = test split
+  eval_splits: [val, test]
+  kwargs:
+    imratio: 0.1
+  # ImbalancedDataGenerator is called inside load_dataset() for cifar10
+
+# ----------------------------------------------------------
+# Model
+# ----------------------------------------------------------
+model:
+  name: resnet20         # ResNet20 as used in the tutorial
+  pretrained: false      # tutorial trains from scratch
+  num_classes: 1         # binary classification
+  in_channels: 3
+
+# ----------------------------------------------------------
+# Evaluation metrics
+# ----------------------------------------------------------
+metrics:
+  - AUROC
+
+# ----------------------------------------------------------
+# Training
+# ----------------------------------------------------------
+training:
+  # --- Experiment tracking ---
+  project_name: libauc
+  experiment_name: CompositionalAUCLoss_cifar10_default
+
+  # --- Reproducibility ---
+  SEED: 123              # exact seed from tutorial
+
+  # --- Data loading ---
+  batch_size: 128        # BATCH_SIZE = 128 from tutorial
+  eval_batch_size: 256
+  # sampling_rate: ratio of positives in each mini-batch for DualSampler
+  # tutorial sets sampling_rate = 0.2  (imratio=0.1, so 2x oversampling)
+  sampling_rate: 0.2
+  num_workers: 0         # set >0 on Linux/macOS; keep 0 on Windows
+
+  # --- Training schedule ---
+  epochs: 100            # total_epochs = 100 from tutorial
+  # decay at 50% and 75% of total epochs → epochs 50 and 75
+  decay_epochs: [0.5, 0.75]
+
+  # --- Loss: CompositionalAUCLoss ---
+  # k=1 : number of inner CE updates per outer AUC update (tutorial default)
+  # margin=1.0 : hinge margin (tutorial default)
+  # imratio is not passed — it will be calculated automatically from mini-batch
+  loss: CompositionalAUCLoss
+  loss_kwargs:
+    margin: 1.0
+    k: 1
+
+  # --- Optimizer: PDSCA ---
+  # All values taken directly from the tutorial hyper-parameters section:
+  #   lr        = 0.1   (outer AUC learning rate)
+  #   beta1     = 0.9   (beta0 in tutorial = running avg of gradient)
+  #   beta2     = 0.9   (beta1 in tutorial = running avg of gradient square)
+  #   epoch_decay = 2e-3
+  #   weight_decay = 1e-4
+  optimizer: PDSCA
+  optimizer_kwargs:
+    lr: 0.1
+    beta1: 0.9           # beta0 in tutorial notation
+    beta2: 0.9           # beta1 in tutorial notation
+    epoch_decay: 2.0e-3
+    weight_decay: 1.0e-4
+
+  # --- Checkpointing ---
+  output_path: ./output
+  resume_from_checkpoint: true
+  save_checkpoint_every: 10

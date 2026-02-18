@@ -1,0 +1,62 @@
+# ----------------------------------------------------------
+# Dataset
+# ----------------------------------------------------------
+dataset:
+  name: cifar10
+  eval_splits: [val, test]
+  kwargs:
+    imratio: 0.02
+
+# ----------------------------------------------------------
+# Model
+# ----------------------------------------------------------
+model:
+  name: resnet18          # ResNet18 as used in the tutorial (NOT resnet20)
+  pretrained: true
+  pretrained_path: D:\Code\AutoAUC_demo\LibAUC\ckpts\ce_pretrained_model_soap.pth
+  num_classes: 1          # binary classification
+  in_channels: 3
+
+# ----------------------------------------------------------
+# Evaluation metrics
+# ----------------------------------------------------------
+metrics:
+  - AUPRC               # primary metric for AP loss tutorials
+
+# ----------------------------------------------------------
+# Training
+# ----------------------------------------------------------
+training:
+  # --- Experiment tracking ---
+  project_name: libauc
+  experiment_name: APLoss_cifar10
+
+  # --- Reproducibility ---
+  SEED: 2023              # exact seed from tutorial: set_all_seeds(2023)
+
+  # --- Data loading ---
+  batch_size: 128
+  eval_batch_size: 256
+  sampling_rate: 0.5
+  num_workers: 0
+
+  # --- Training schedule ---
+  epochs: 60
+  decay_epochs: [30, 45]
+
+  loss: APLoss
+  optimizer: SOAP
+
+  # --- Checkpointing ---
+  output_path: ./output
+  resume_from_checkpoint: true
+  save_checkpoint_every: 10
+
+automax:
+  deterministic: true
+  n_trials: 5
+  n_configs: 1
+  SEED: 42
+  name: n5_APLoss_cifar10
+  output_path: ./automax_output
+  overwrite: true

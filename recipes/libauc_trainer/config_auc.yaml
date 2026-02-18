@@ -1,0 +1,67 @@
+# ----------------------------------------------------------
+# Dataset
+# ----------------------------------------------------------
+dataset:
+  name: cifar10                # passed to load_dataset(name=..., split=...)
+  eval_splits: [val, test]     # additional splits to evaluate after each epoch
+  kwargs:
+    imratio: 0.1
+
+# ----------------------------------------------------------
+# Model
+# ----------------------------------------------------------
+model:
+  name: resnet20               # see build_model() in run.py
+  pretrained: true
+  pretrained_path: D:\Code\AutoAUC_demo\LibAUC\ckpts\ce_pretrained_model.pth
+  num_classes: 1               # 1 for binary classification
+  in_channels: 3
+
+# ----------------------------------------------------------
+# Evaluation metrics  (computed on every eval_split each epoch)
+# ----------------------------------------------------------
+metrics:
+  - AUROC
+
+# ----------------------------------------------------------
+# Training
+# ----------------------------------------------------------
+training:
+  # --- Experiment tracking ---
+  project_name: libauc
+  experiment_name: AUCMLoss_cifar10_default
+  
+  # --- Core hyperparameters ---
+  epochs: 100
+  batch_size: 128
+  eval_batch_size: 256
+  sampling_rate: 0.2           # positive-sample ratio for DualSampler
+  num_workers: 0
+  SEED: 123
+
+  # --- Loss function ---
+  # Choices: AUCMLoss | CompositionalAUCLoss | APLoss |
+  #          pAUC_CVaR_Loss | pAUC_DRO_Loss | tpAUC_KL_Loss |
+  #          NDCGLoss | CrossEntropyLoss
+  loss: AUCMLoss
+  loss_kwargs:
+    margin: 1.0
+
+  # --- Optimizer ---
+  # Choices: PESG | PDSCA | SOAP | SOPA | SOPAs | SOTAs | SONG | SGD | Adam
+  optimizer: PESG
+  optimizer_kwargs:
+    lr: 0.1
+    weight_decay: 1.0e-5
+    epoch_decay: 3.0e-3
+    momentum: 0.9
+
+  # --- LR schedule: epochs at which to decay the learning rate ---
+  # Integers are used as-is; floats are treated as fractions of total epochs
+  # e.g. 0.5 with epochs=50  ->  decay at epoch 25
+  decay_epochs: [0.5, 0.75]
+
+  # --- Checkpointing ---
+  output_path: ./output
+  resume_from_checkpoint: true
+  save_checkpoint_every: 10     # save a .pt file every N epochs

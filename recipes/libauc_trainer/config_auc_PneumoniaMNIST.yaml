@@ -26,7 +26,7 @@ metrics:
 training:
   # --- Experiment tracking ---
   project_name: libauc
-  experiment_name: AUCMLoss_PneumoniaMNIST
+  experiment_name: AUCMLoss_PneumoniaMNIST_default
   
   # --- Core hyperparameters ---
   epochs: 100
@@ -41,10 +41,17 @@ training:
   #          pAUC_CVaR_Loss | pAUC_DRO_Loss | tpAUC_KL_Loss |
   #          NDCGLoss | CrossEntropyLoss
   loss: AUCMLoss
+  loss_kwargs:
+    margin: 1.0
 
   # --- Optimizer ---
   # Choices: PESG | PDSCA | SOAP | SOPA | SOPAs | SOTAs | SONG | SGD | Adam
   optimizer: PESG
+  optimizer_kwargs:
+    lr: 0.1
+    weight_decay: 1.0e-5
+    epoch_decay: 3.0e-3
+    momentum: 0.9
 
   # --- LR schedule: epochs at which to decay the learning rate ---
   # Integers are used as-is; floats are treated as fractions of total epochs
@@ -53,15 +60,5 @@ training:
 
   # --- Checkpointing ---
   output_path: ./output
-  resume_from_checkpoint: false
+  resume_from_checkpoint: true
   save_checkpoint_every: 10     # save a .pt file every N epochs
-
-
-automax:
-  deterministic: true
-  n_trials: 5
-  n_configs: 1
-  SEED: 42
-  name: n5_AUCMLoss_PneumoniaMNIST
-  output_path: ./automax_output
-  overwrite: true

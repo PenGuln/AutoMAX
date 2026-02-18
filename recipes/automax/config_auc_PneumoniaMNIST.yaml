@@ -1,0 +1,57 @@
+# ----------------------------------------------------------
+# Dataset
+# ----------------------------------------------------------
+dataset:
+  name: PneumoniaMNIST         # passed to load_dataset(name=..., split=...)
+  eval_splits: [val, test]     # additional splits to evaluate after each epoch
+
+# ----------------------------------------------------------
+# Model
+# ----------------------------------------------------------
+model:
+  name: resnet18               # see build_model() in run.py
+  pretrained: false
+  num_classes: 1               # 1 for binary classification
+  in_channels: 1
+
+# ----------------------------------------------------------
+# Evaluation metrics  (computed on every eval_split each epoch)
+# ----------------------------------------------------------
+metrics:
+  - AUROC
+
+# ----------------------------------------------------------
+# Training
+# ----------------------------------------------------------
+training:
+  # --- Experiment tracking ---
+  project_name: libauc
+  experiment_name: AUCMLoss_PneumoniaMNIST
+  
+  # --- Core hyperparameters ---
+  epochs: 100
+  batch_size: 128
+  eval_batch_size: 256
+  sampling_rate: 0.2           # positive-sample ratio for DualSampler
+  num_workers: 0
+  SEED: 123
+
+  loss: AUCMLoss
+  optimizer: PESG
+
+  decay_epochs: [0.5, 0.75]
+
+  # --- Checkpointing ---
+  output_path: ./output
+  resume_from_checkpoint: false
+  save_checkpoint_every: 10     # save a .pt file every N epochs
+
+
+automax:
+  deterministic: true
+  n_trials: 5
+  n_configs: 1
+  SEED: 42
+  name: n5_AUCMLoss_PneumoniaMNIST
+  output_path: ./automax_output
+  overwrite: true

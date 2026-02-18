@@ -39,23 +39,9 @@ training:
   num_workers: 0
   SEED: 123
 
-  # --- Loss function ---
-  # Choices: AUCMLoss | CompositionalAUCLoss | APLoss |
-  #          pAUC_CVaR_Loss | pAUC_DRO_Loss | tpAUC_KL_Loss |
-  #          NDCGLoss | CrossEntropyLoss
   loss: AUCMLoss
-  loss_kwargs:
-    margin: 1.0
-
-  # --- Optimizer ---
-  # Choices: PESG | PDSCA | SOAP | SOPA | SOPAs | SOTAs | SONG | SGD | Adam
   optimizer: PESG
-  optimizer_kwargs:
-    lr: 0.1
 
-  # --- LR schedule: epochs at which to decay the learning rate ---
-  # Integers are used as-is; floats are treated as fractions of total epochs
-  # e.g. 0.5 with epochs=50  ->  decay at epoch 25
   decay_epochs: [0.5, 0.75]
 
   # --- Checkpointing ---
