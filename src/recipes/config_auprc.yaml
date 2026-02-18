@@ -1,0 +1,81 @@
+# ----------------------------------------------------------
+# Dataset
+# ----------------------------------------------------------
+dataset:
+  name: cifar10
+  eval_splits: [val, test]
+  kwargs:
+    imratio: 0.02
+
+# ----------------------------------------------------------
+# Model
+# ----------------------------------------------------------
+model:
+  name: resnet18          # ResNet18 as used in the tutorial (NOT resnet20)
+  pretrained: true
+  pretrained_path: D:\Code\AutoAUC_demo\LibAUC\ckpts\ce_pretrained_model_soap.pth
+  num_classes: 1          # binary classification
+
+# ----------------------------------------------------------
+# Evaluation metrics
+# ----------------------------------------------------------
+metrics:
+  - AUPRC               # primary metric for AP loss tutorials
+
+# ----------------------------------------------------------
+# Training
+# ----------------------------------------------------------
+training:
+  # --- Experiment tracking ---
+  project_name: libauc
+  experiment_name: APLoss_cifar10
+
+  # --- Reproducibility ---
+  SEED: 2023              # exact seed from tutorial: set_all_seeds(2023)
+
+  # --- Data loading ---
+  batch_size: 128
+  eval_batch_size: 256
+  # sampling_rate: positives fraction per mini-batch for DualSampler
+  # tutorial does not set this explicitly; default 0.5 is reasonable for imratio=0.02
+  # (more aggressive oversampling to ensure positives appear in every batch)
+  sampling_rate: 0.5
+  num_workers: 0          # set >0 on Linux/macOS; keep 0 on Windows
+
+  # --- Training schedule ---
+  epochs: 60              # total_epoch = 60 from tutorial
+  # decay at epochs 30 and 45 (exact integers, not fractions)
+  decay_epochs: [30, 45]
+
+  # --- Loss: APLoss (AveragePrecisionLoss) ---
+  # data_len is injected automatically by the Trainer from the training set size
+  # margin=0.6, gamma=0.1 from tutorial hyper-parameters section
+  loss: APLoss
+  loss_kwargs:
+    margin: 0.6
+    gamma: 0.1            # moving average factor for the AP loss estimator
+
+  # --- Optimizer: SOAP ---
+  # lr=1e-3, mode='adam', weight_decay=2e-4 from tutorial
+  # SOAP does not use epoch_decay or momentum in the tutorial (defaults are fine)
+  optimizer: SOAP
+  optimizer_kwargs:
+    lr: 1.0e-3
+    mode: adam
+    weight_decay: 2.0e-4
+
+  # --- Checkpointing ---
+  output_path: ./output
+  resume_from_checkpoint: true
+  save_checkpoint_every: 10
+
+# python .\plot3.py --project libauc --run_id thhvnha8
+
+automax:
+  deterministic: true
+  n_trials: 5
+  n_configs: 1
+  SEED: 42
+  name: n5_APLoss_cifar10
+  output_path: ./automax_output
+  overwrite: true
