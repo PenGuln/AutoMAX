@@ -83,7 +83,7 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
 
         imratio = kwargs.get("imratio", 0.1)
         # generate imbalanced data
-        generator = ImbalancedDataGenerator(verbose=True, random_seed=2023)
+        generator = ImbalancedDataGenerator(verbose=True, random_seed=0)
         (train_images, train_labels) = generator.transform(train_data, train_targets, imratio=imratio)
         (test_images, test_labels) = generator.transform(test_data, test_targets, imratio=0.5)
 
@@ -121,6 +121,9 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
+    elif name == "ChestMNIST":
+        from medmnist import ChestMNIST
+
     else:
         raise ValueError(
             f"Unknown dataset: '{name}'. "

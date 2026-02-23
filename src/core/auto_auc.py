@@ -2,13 +2,21 @@
 AutoMAX optimization framework.
 """
 import os
+import sys
+import logging
 from typing import Dict, Any, Optional
 from smac import HyperparameterOptimizationFacade, Scenario
-from ConfigSpace import ConfigurationSpace
 from ..config.args import AutoMAXConfigration
 import shutil
 from smac.runhistory import TrialInfo, TrialValue
+import pickle
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
 
 class AutoMAX:
     """
@@ -18,7 +26,7 @@ class AutoMAX:
     using the SMAC3 framework.
     """
     
-    def __init__(self, trainer, config: AutoMAXConfigration, target: Optional[str]):
+    def __init__(self, trainer, config: AutoMAXConfigration, target: str):
         """
         Initialize AutoAUC optimizer.
         
@@ -27,12 +35,14 @@ class AutoMAX:
             config: AutoAUC configuration
             data: Training data configuration
             model: Model to optimize
-            target: Target metric to optimize (optional)
+            target: Target metric to optimize
         """
         # Setup configuration space
         self.configspace = trainer.cs        
         self.trainer = trainer
         self.target = target
+        self.config = config
+        self.log = []
 
         # Setup SMAC scenario
         scenario = Scenario(
@@ -48,11 +58,19 @@ class AutoMAX:
         self.smac = HyperparameterOptimizationFacade(
             scenario,
             self.train,
-            overwrite=False,
+            overwrite=config.overwrite,
         )
-        # print(self.smac.runhistory.finished)
+
+        self.finished = self.smac.runhistory.finished
 
         self.best_score = float('-inf')
+        if not config.overwrite and self.finished > 0:
+            filepath = os.path.join(self.config.output_directory, self.config.name, "state.pkl")
+            if os.path.exists(filepath):
+                with open(filepath, "rb") as f:
+                    self.log = pickle.load(f)
+                    
+        assert len(self.log) == self.finished
 
     def train(self, space, seed: int = 0) -> float:
         """
@@ -65,19 +83,47 @@ class AutoMAX:
         Returns:
             Negative score (for minimization)
         """
-        print(f"Training with configuration: {space}")
+        trail_log = {}
+        trail_log["space"] = space
+        logger.info(f"Training with configuration: {space}")
         trainer = self.trainer(space=space)
         train_log = trainer.train()
-        score = max([v['metrics'][0][self.target] for v in train_log])
-        print(f"Score: {score}")
+        if not train_log:
+            raise ValueError("Training should have at least one evaluation record.")
 
+        id = max(range(len(train_log)), key=lambda i : train_log[i]['metrics'][0][self.target]) # get id which has the maximum validation score
+        num_evals = len(train_log[0]['metrics'])
+        if num_evals == 0:
+            raise ValueError("Evaluation should contain at least one dataset split.")
+        if num_evals == 1:
+            score = train_log[id]['metrics'][0][self.target]
+            logger.info(f"Trail {self.finished + 1}:\n  -- Best validation {self.target}: {score}")
+            trail_log["val"] = score
+        elif num_evals == 2:
+            score = train_log[id]['metrics'][1][self.target]
+            logger.info(f"Trail {self.finished + 1}:\n  -- Best validation {self.target}: {train_log[id]['metrics'][0][self.target]}\n  -- Best test {self.target}: {score}")
+            trail_log["val"] = train_log[id]['metrics'][0][self.target]
+            trail_log["test"] = score
+        else:
+            scores = [train_log[id]['metrics'][x][self.target] for x in range(1, num_evals)]
+            score = sum(scores) / (num_evals - 1)
+            logger.info(f"Trail {self.finished + 1}:\n  -- Best validation {self.target}: {train_log[id]['metrics'][0][self.target]}\n  -- Best test avg. {self.target}: {score}")
+            trail_log["val"] = train_log[id]['metrics'][0][self.target]
+            trail_log["test"] = score
+        
         if score > self.best_score:
+            logger.info(f"Found new best configuration! Updating the best checkpoint.")
             self.best_score = score
             best_dir = os.path.join(trainer.args.output_path, trainer.args.experiment_name + '_best')
             if os.path.exists(best_dir):
                 shutil.rmtree(best_dir)
             os.rename(os.path.join(trainer.args.output_path, trainer.args.experiment_name), best_dir)
-
+        
+        self.finished += 1
+        self.log.append(trail_log)
+        with open(os.path.join(self.config.output_directory, self.config.name, "state.pkl"), "wb") as f:
+            pickle.dump(self.log, f)
+        
         return -score  # Return negative for minimization
 
     def optimize(self):
@@ -95,5 +141,23 @@ class AutoMAX:
             self.smac.tell(trial_info, trial_value)
             
         incumbent = self.smac.optimize()
-        print(f"Best configuration found: {incumbent}")
+        logger.info(f"Best configuration found: {incumbent}")
+
+        # Print trial history as a table
+        has_test = any("test" in entry for entry in self.log)
+        header = f"{'Trial':<8} {'Val ' + self.target:<20}" + (f" {'Test ' + self.target:<20}" if has_test else "")
+        separator = "-" * len(header)
+        print("\nTrial History:")
+        print(separator)
+        print(header)
+        print(separator)
+        for i, entry in enumerate(self.log, 1):
+            val = f"{entry.get('val', float('nan')):.6f}"
+            row = f"{i:<8} {val:<20}"
+            if has_test:
+                test = f"{entry.get('test', float('nan')):.6f}"
+                row += f" {test:<20}"
+            print(row)
+        print(separator)
+
         return incumbent
