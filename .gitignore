@@ -1,0 +1,22 @@
+# Ignore everything
+*
+
+# But include main.py
+!main.py
+!README.md
+!requirements.txt
+!setup.sh
+!.gitignore
+
+# And include everything under src/
+!src/
+!src/**
+!libauc/
+!libauc/**
+!recipes
+!recipes/**
+
+# But ignore __pycache__ directories in src/
+**/__pycache__/
+__pycache__/
+
