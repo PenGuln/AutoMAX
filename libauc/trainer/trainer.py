@@ -1,7 +1,3 @@
-"""
-Core training functionality for AutoAUC.
-"""
-
 import logging
 import torch
 import libauc
@@ -16,42 +12,6 @@ from .args import TrainingArguments, _OPTIMIZERS, _LOSSES
 from .callbacks import CallbackHandler, TrainerCallback, TrainerState
 
 logger = logging.getLogger(__name__)
-
-"""
-Model architecture utilities for AutoAUC.
-"""
-
-def get_optimizer(name):
-    """
-    Get an optimizer class by name.
-    
-    Args:
-        name: Name of the optimizer
-        
-    Returns:
-        Optimizer class
-    """
-    opt_name, opt_cls_name = _OPTIMIZERS[name]
-    opt = importlib.import_module(opt_name)
-    # print(importlib.util.find_spec(opt_name).origin)
-    opt_cls = getattr(opt, opt_cls_name, None)
-    return opt_cls
-
-
-def get_loss(name):
-    """
-    Get a loss function class by name.
-    
-    Args:
-        name: Name of the loss function
-        
-    Returns:
-        Loss function class
-    """
-    loss_name, loss_cls_name = _LOSSES[name]
-    loss = importlib.import_module(loss_name)
-    loss_cls = getattr(loss, loss_cls_name, None)
-    return loss_cls
 
 # ---------------------------------------------------------------------------
 # Model builder
@@ -156,10 +116,42 @@ class Trainer:
         """Add a callback to the trainer."""
         self.callback_handler.add_callback(callback)
     
+    def _get_optimizer(self, name):
+        """
+        Get an optimizer class by name.
+        
+        Args:
+            name: Name of the optimizer
+            
+        Returns:
+            Optimizer class
+        """
+        opt_name, opt_cls_name = _OPTIMIZERS[name]
+        opt = importlib.import_module(opt_name)
+        # print(importlib.util.find_spec(opt_name).origin)
+        opt_cls = getattr(opt, opt_cls_name, None)
+        return opt_cls
+
+
+    def _get_loss(self, name):
+        """
+        Get a loss function class by name.
+        
+        Args:
+            name: Name of the loss function
+            
+        Returns:
+            Loss function class
+        """
+        loss_name, loss_cls_name = _LOSSES[name]
+        loss = importlib.import_module(loss_name)
+        loss_cls = getattr(loss, loss_cls_name, None)
+        return loss_cls
+
     def _construct_optimizer_and_loss(self, model, train_args: TrainingArguments):
         """Construct optimizer and loss function based on configuration."""
         # Setup loss function
-        loss_cls = get_loss(train_args.loss)
+        loss_cls = self._get_loss(train_args.loss)
         if train_args.loss in ["APLoss", "pAUC_DRO_Loss", "tpAUC_KL_Loss"]:
             loss_fn = loss_cls(data_len=self.data_len, **train_args.loss_kwargs)
         elif train_args.loss in ["pAUC_CVaR_Loss"]:
@@ -168,7 +160,7 @@ class Trainer:
             loss_fn = loss_cls(**train_args.loss_kwargs)
 
         # Setup optimizer
-        opt_cls = get_optimizer(train_args.optimizer)
+        opt_cls = self._get_optimizer(train_args.optimizer)
         optimizer = opt_cls(model.parameters(), loss_fn=loss_fn, **train_args.optimizer_kwargs)
     
         return loss_fn, optimizer
@@ -286,7 +278,6 @@ class Trainer:
         Returns:
             Tuple of (dictionary of evaluation metrics, test_true, test_pred)
         """
-        result = {}
         test_pred_list = []
         test_true_list = []
         
