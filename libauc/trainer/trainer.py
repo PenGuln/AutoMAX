@@ -357,7 +357,7 @@ class Trainer:
             raise FileNotFoundError(f"Checkpoint file not found: {checkpoint_path}")
         
         logger.info(f"Loading checkpoint from {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, weights_only=False)
                 
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
