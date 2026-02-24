@@ -112,6 +112,8 @@ class Trainer:
             self.callback_handler = CallbackHandler(callbacks, self.model, self.optimizer, self.loss_fn)
         self.callback_handler.on_init_end(self.args, self.state)
 
+        self.train_log = []
+
     def add_callback(self, callback):
         """Add a callback to the trainer."""
         self.callback_handler.add_callback(callback)
@@ -194,7 +196,7 @@ class Trainer:
             List of training logs with metrics for each epoch
         """
         self.callback_handler.on_train_begin(self.args, self.state)
-        train_log = []
+        train_log = self.train_log
         
         model = self.model.cuda()
         self.loss_fn = self.loss_fn.cuda()
@@ -245,6 +247,8 @@ class Trainer:
                 "lr": self.optimizer.lr,
                 "loss" : train_loss
             })
+            self.train_log = train_log
+
             self.callback_handler.on_epoch_end(
                 self.args, self.state,
                 metrics=metrics,
@@ -341,6 +345,7 @@ class Trainer:
             'loss_fn': self.loss_fn,
             'state': self.state,
             'args': self.args,
+            'train_log': self.train_log,
         }
         
         # Save checkpoint
@@ -366,6 +371,7 @@ class Trainer:
         self.state = checkpoint['state']
         # have to check if the args are the same as the current args
         self.args = checkpoint['args']
+        self.train_log = checkpoint.get('train_log', [])
                 
         logger.info(f"Checkpoint loaded successfully. Resuming from epoch {self.state.epoch}")
         return checkpoint

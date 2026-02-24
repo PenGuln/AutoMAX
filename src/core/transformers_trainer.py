@@ -56,10 +56,12 @@ class TransformerTrainer(Trainer):
             self.callback_handler = CallbackHandler(callbacks, self.model, self.optimizer, self.loss_fn)
         self.callback_handler.on_init_end(self.args, self.state)
 
+        self.train_log = []
+
     def train(self):
        
         self.callback_handler.on_train_begin(self.args, self.state)
-        train_log = []
+        train_log = self.train_log
 
         self.model = self.model.cuda()
         self.loss_fn = self.loss_fn.cuda()
@@ -118,6 +120,8 @@ class TransformerTrainer(Trainer):
                 "lr": self.optimizer.lr,
                 "loss" : train_loss
             })
+            self.train_log = train_log
+            
             self.callback_handler.on_epoch_end(
                 self.args, self.state, 
                 metrics=metrics, 
