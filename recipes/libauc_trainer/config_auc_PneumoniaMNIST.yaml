@@ -29,7 +29,7 @@ training:
   experiment_name: AUCMLoss_PneumoniaMNIST_default
   
   # --- Core hyperparameters ---
-  epochs: 100
+  epochs: 60
   batch_size: 128
   eval_batch_size: 256
   sampling_rate: 0.2           # positive-sample ratio for DualSampler

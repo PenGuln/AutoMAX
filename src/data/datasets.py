@@ -4,6 +4,7 @@ import torchvision.transforms as transforms
 import numpy as np
 from PIL import Image
 from libauc.utils import ImbalancedDataGenerator
+import pandas as pd
 
 # ---------------------------------------------------------------------------
 # Dataset loading
@@ -51,6 +52,23 @@ class ImageDataset(Dataset):
         else:
             image = self.transform_test(image)
         return image, target, idx
+
+class TextDataset(Dataset):
+    def __init__(self, dataframe, text_col, label_col):
+        self.len = len(dataframe)
+        self.data = dataframe
+        self.text_col = text_col
+        self.targets = self.data[label_col].to_numpy().astype(np.float32)
+        self.texts = self.data[text_col]
+
+    def __getitem__(self, index):
+        text_inputs = self.texts[index]
+        targets = self.targets[index]
+        return text_inputs, targets, index    
+    
+
+    def __len__(self):
+        return self.len
 
 def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
     """
@@ -123,6 +141,32 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
         return train_dataset, eval_datasets
     elif name == "ChestMNIST":
         from medmnist import ChestMNIST
+    
+    elif name == "rip":
+        train_df = pd.read_parquet("hf://datasets/ShantanuT01/RIP-Dataset/train.parquet")
+        test_df = pd.read_parquet("hf://datasets/ShantanuT01/RIP-Dataset/test.parquet")
+        train_dataset = TextDataset(train_df, "text", "target")
+        eval_datasets = []
+        for split in splits:
+            if split == 'test':
+                eval_datasets.append(TextDataset(test_df,"text", "target"))
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        
+        return train_dataset, eval_datasets
+    
+    elif name == "raid":
+        train_df = pd.read_parquet("data/raid-training-stratified.parquet")
+        test_df = pd.read_parquet("data/raid-training-stratified.parquet")
+        train_dataset = TextDataset(train_df, "generation", "target")
+        eval_datasets = []
+        for split in splits:
+            if split == 'test':
+                eval_datasets.append(TextDataset(test_df,"generation", "target"))
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        
+        return train_dataset, eval_datasets
 
     else:
         raise ValueError(
