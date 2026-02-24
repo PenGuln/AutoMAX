@@ -10,9 +10,11 @@ import pandas as pd
 # Dataset loading
 # ---------------------------------------------------------------------------
 class IndexedDataset(Dataset):
-    def __init__(self, dataset):
+    def __init__(self, dataset, class_id = None):
         self.dataset = dataset
         self.targets = self._load_targets()
+        if len(self.targets.shape) == 2 and class_id is not None:
+            self.targets = self.targets[:, class_id : class_id + 1]
     
     def _load_targets(self):
         targets = [self.dataset[i][1] for i in range(len(self.dataset))]
@@ -22,7 +24,8 @@ class IndexedDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        image, target = self.dataset[idx]
+        image, _ = self.dataset[idx]
+        target = self.targets[idx]
         return image, target, idx
 
 class ImageDataset(Dataset):
@@ -123,8 +126,6 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             transforms.ToTensor(),
             transforms.Normalize(mean=[.5], std=[.5])
         ])
-
-        # No augmentation for val/test
         test_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=[.5], std=[.5])
@@ -139,8 +140,44 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
-    elif name == "ChestMNIST":
+    elif name == "breastmnist":
+        from medmnist import BreastMNIST
+        train_transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+        test_transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+        train_dataset = IndexedDataset(BreastMNIST(split='train', transform=train_transform, download=True, root="./data"))
+        eval_datasets = []
+        for split in splits:
+            if split == 'val':
+                eval_datasets.append(IndexedDataset(BreastMNIST(split='val', transform=test_transform, download=True, root="./data")))
+            elif split == 'test':
+                eval_datasets.append(IndexedDataset(BreastMNIST(split='test', transform=test_transform, download=True, root="./data")))
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        return train_dataset, eval_datasets
+    elif name == "chestmnist":
         from medmnist import ChestMNIST
+        train_transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+        test_transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+        task = kwargs.get("task", 0)
+        train_dataset = IndexedDataset(ChestMNIST(split='train', transform=train_transform, download=True, root="./data"), task)
+        print(train_dataset[0])
+        eval_datasets = []
+        for split in splits:
+            if split == 'val':
+                eval_datasets.append(IndexedDataset(ChestMNIST(split='val', transform=test_transform, download=True, root="./data"), task))
+            elif split == 'test':
+                eval_datasets.append(IndexedDataset(ChestMNIST(split='test', transform=test_transform, download=True, root="./data"), task))
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        return train_dataset, eval_datasets
     
     elif name == "rip":
         train_df = pd.read_parquet("hf://datasets/ShantanuT01/RIP-Dataset/train.parquet")
