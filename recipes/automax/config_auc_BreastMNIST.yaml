@@ -50,8 +50,7 @@ training:
 automax:
   deterministic: true
   n_trials: 10
-  n_configs: 1
   SEED: 42
   name: n10_AUCMLoss_BreastMNIST
   output_path: ./automax_output
-  overwrite: true
+  overwrite: false

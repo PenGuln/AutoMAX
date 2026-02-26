@@ -2,26 +2,28 @@
 # Dataset
 # ----------------------------------------------------------
 dataset:
-  name: cifar10
+  name: BreastMNIST
+  # ds1 = train split (eval mode, no augmentation)
+  # ds2 = test split
   eval_splits: [val, test]
   kwargs:
-    imratio: 0.02
+    imratio: 0.1
+  # ImbalancedDataGenerator is called inside load_dataset() for cifar10
 
 # ----------------------------------------------------------
 # Model
 # ----------------------------------------------------------
 model:
-  name: resnet18          # ResNet18 as used in the tutorial (NOT resnet20)
-  pretrained: true
-  pretrained_path: D:\Code\AutoAUC_demo\LibAUC\ckpts\ce_pretrained_model_soap.pth
-  num_classes: 1          # binary classification
-  in_channels: 3
+  name: resnet18         # ResNet20 as used in the tutorial
+  pretrained: false      # tutorial trains from scratch
+  num_classes: 1         # binary classification
+  in_channels: 1
 
 # ----------------------------------------------------------
 # Evaluation metrics
 # ----------------------------------------------------------
 metrics:
-  - AUPRC               # primary metric for AP loss tutorials
+  - AUROC
 
 # ----------------------------------------------------------
 # Training
@@ -29,23 +31,25 @@ metrics:
 training:
   # --- Experiment tracking ---
   project_name: libauc
-  experiment_name: APLoss_cifar10
+  experiment_name: CompositionalAUCLoss_BreastMNIST
 
   # --- Reproducibility ---
-  SEED: 2023              # exact seed from tutorial: set_all_seeds(2023)
+  SEED: 123              # exact seed from tutorial
 
   # --- Data loading ---
-  batch_size: 128
+  batch_size: 128        # BATCH_SIZE = 128 from tutorial
   eval_batch_size: 256
-  sampling_rate: 0.5
-  num_workers: 0
+  # sampling_rate: ratio of positives in each mini-batch for DualSampler
+  # tutorial sets sampling_rate = 0.2  (imratio=0.1, so 2x oversampling)
+  sampling_rate: 0.2
+  num_workers: 2         # set >0 on Linux/macOS; keep 0 on Windows
 
   # --- Training schedule ---
-  epochs: 60
-  decay_epochs: [30, 45]
+  epochs: 100
+  decay_epochs: [0.5, 0.75]
 
-  loss: APLoss
-  optimizer: SOAP
+  loss: CompositionalAUCLoss
+  optimizer: PDSCA
 
   # --- Checkpointing ---
   output_path: ./output
@@ -56,6 +60,6 @@ automax:
   deterministic: true
   n_trials: 5
   SEED: 42
-  name: n5_APLoss_cifar10
+  name: n5_CompositionalAUCLoss_BreastMNIST
   output_path: ./automax_output
   overwrite: false

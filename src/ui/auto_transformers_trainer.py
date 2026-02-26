@@ -229,7 +229,7 @@ def main():
 
     print("\n[Hyperparameter Space]")
     for key, value in trainer.cs.items():
-        print(f"  - {key}: {value}")
+        print(f"{value}")
     
     tuner = AutoMAX(trainer, automax_args, target=metric_names[0])
     tuner.optimize()

@@ -18,7 +18,7 @@ class IndexedDataset(Dataset):
     
     def _load_targets(self):
         targets = [self.dataset[i][1] for i in range(len(self.dataset))]
-        return np.array(targets)
+        return np.array(targets).astype(np.float32)
 
     def __len__(self):
         return len(self.dataset)
@@ -168,7 +168,6 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
         ])
         task = kwargs.get("task", 0)
         train_dataset = IndexedDataset(ChestMNIST(split='train', transform=train_transform, download=True, root="./data"), task)
-        print(train_dataset[0])
         eval_datasets = []
         for split in splits:
             if split == 'val':

@@ -215,7 +215,6 @@ class CLICallback(TrainerCallback):
     
     def __init__(self) -> None:
         super().__init__()
-        self.best_metric = float('-inf')
         self._use_wandb = True
     
     def on_train_begin(self, args: TrainingArguments, state: TrainerState, **kwargs):
@@ -286,11 +285,6 @@ class CLICallback(TrainerCallback):
         display_parts.append(f"LR: {lr:.6f}")
         print(" | ".join(display_parts))
 
-        # Track best metric
-        if first_metric_val is not None and first_metric_val > self.best_metric:
-            self.best_metric = first_metric_val
-            print(f"  ↑ New best: {self.best_metric:.4f}")
-
         # -- wandb logging ------------------------------------------------
         if self._use_wandb:
             try:
@@ -304,7 +298,7 @@ class CLICallback(TrainerCallback):
     def on_train_end(self, args: TrainingArguments, state: TrainerState, **kwargs):
         """Event called at the end of training."""
         print("-" * 50)
-        print(f"Training complete. Best metric: {self.best_metric:.4f}")
+        print(f"Training complete.")
         if self._use_wandb:
             try:
                 import wandb

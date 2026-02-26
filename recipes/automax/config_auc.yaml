@@ -53,8 +53,7 @@ training:
 automax:
   deterministic: true
   n_trials: 5
-  n_configs: 1
   SEED: 42
   name: n5_AUCMLoss_cifar10
   output_path: ./automax_output
-  overwrite: true
+  overwrite: false
