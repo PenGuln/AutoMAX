@@ -10,6 +10,7 @@ from ..config.args import AutoMAXConfigration
 import shutil
 from smac.runhistory import TrialInfo, TrialValue
 import pickle
+from libauc.trainer import Trainer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -83,33 +84,17 @@ class AutoMAX:
         Returns:
             Negative score (for minimization)
         """
-        trail_log = {}
-        trail_log["space"] = space
-        logger.info(f"Training with configuration: {space}")
-        trainer = self.trainer(space=space)
-        train_log = trainer.train()
-        if not train_log:
-            raise ValueError("Training should have at least one evaluation record.")
+        
+        logger.info(f"Starting Trail {self.finished + 1} with configuration: {space}.")
+        trainer: Trainer = self.trainer(space=space)
+        trainer.train()
 
-        id = max(range(len(train_log)), key=lambda i : train_log[i]['metrics'][0][self.target]) # get id which has the maximum validation score
-        num_evals = len(train_log[0]['metrics'])
-        if num_evals == 0:
-            raise ValueError("Evaluation should contain at least one dataset split.")
-        if num_evals == 1:
-            score = train_log[id]['metrics'][0][self.target]
-            logger.info(f"Trail {self.finished + 1}:\n  -- Best validation {self.target}: {score}")
-            trail_log["val"] = score
-        elif num_evals == 2:
-            score = train_log[id]['metrics'][1][self.target]
-            logger.info(f"Trail {self.finished + 1}:\n  -- Best validation {self.target}: {train_log[id]['metrics'][0][self.target]}\n  -- Best test {self.target}: {score}")
-            trail_log["val"] = train_log[id]['metrics'][0][self.target]
-            trail_log["test"] = score
+        trail_log = trainer.state.train_summary
+        trail_log["space"] = space
+        if 'test' in trail_log.keys():
+            score = trail_log['test']
         else:
-            scores = [train_log[id]['metrics'][x][self.target] for x in range(1, num_evals)]
-            score = sum(scores) / (num_evals - 1)
-            logger.info(f"Trail {self.finished + 1}:\n  -- Best validation {self.target}: {train_log[id]['metrics'][0][self.target]}\n  -- Best test avg. {self.target}: {score}")
-            trail_log["val"] = train_log[id]['metrics'][0][self.target]
-            trail_log["test"] = score
+            score = trail_log['val']
         
         if score > self.best_score:
             logger.info(f"Found new best configuration! Updating the best checkpoint.")

@@ -112,8 +112,6 @@ class Trainer:
             self.callback_handler = CallbackHandler(callbacks, self.model, self.optimizer, self.loss_fn)
         self.callback_handler.on_init_end(self.args, self.state)
 
-        self.train_log = []
-
     def add_callback(self, callback):
         """Add a callback to the trainer."""
         self.callback_handler.add_callback(callback)
@@ -196,8 +194,6 @@ class Trainer:
             List of training logs with metrics for each epoch
         """
         self.callback_handler.on_train_begin(self.args, self.state)
-        train_log = self.train_log
-        
         model = self.model.cuda()
         self.loss_fn = self.loss_fn.cuda()
 
@@ -241,13 +237,6 @@ class Trainer:
             model.eval()
             train_loss = np.mean(train_loss)
             metrics, test_true, test_pred = self.evaluate_loop(model)
-            train_log.append({
-                "metrics" : metrics,
-                "epoch" : epoch,
-                "lr": self.optimizer.lr,
-                "loss" : train_loss
-            })
-            self.train_log = train_log
 
             self.callback_handler.on_epoch_end(
                 self.args, self.state,
@@ -259,17 +248,13 @@ class Trainer:
             )
             
             # Save checkpoint periodically
-            if (epoch + 1) % self.args.save_checkpoint_every == 0:
+            if (epoch + 1) % self.args.save_checkpoint_every == 0 or (epoch + 1) == self.args.epochs:
                 checkpoint_path = os.path.join(self.args.output_path, self.args.experiment_name, f"epoch_{epoch + 1}.pt")
                 self.save_checkpoint(checkpoint_path)
 
         self.callback_handler.on_train_end(self.args, self.state)
-        
-        # Save final model
-        final_model_path = os.path.join(self.args.output_path, self.args.experiment_name, f"epoch_{self.args.epochs}.pt")
-        self.save_checkpoint(final_model_path)
 
-        return train_log
+        return self.state.train_log
 
     def evaluate(self, loader, model):
         """
@@ -344,8 +329,7 @@ class Trainer:
             'loss_fn_state_dict': self.loss_fn.state_dict(),
             'loss_fn': self.loss_fn,
             'state': self.state,
-            'args': self.args,
-            'train_log': self.train_log,
+            'args': self.args
         }
         
         # Save checkpoint
@@ -362,16 +346,13 @@ class Trainer:
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         if hasattr(self.loss_fn, 'a') and hasattr(self.loss_fn, 'b') and hasattr(self.loss_fn, 'alpha'):
-            print('Loading loss_fn_state_dict')
             self.loss_fn.load_state_dict(checkpoint['loss_fn_state_dict'])
         else:
-            print('Loading loss_fn')
             self.loss_fn = checkpoint['loss_fn']
         
         self.state = checkpoint['state']
         # have to check if the args are the same as the current args
         self.args = checkpoint['args']
-        self.train_log = checkpoint.get('train_log', [])
                 
         logger.info(f"Checkpoint loaded successfully. Resuming from epoch {self.state.epoch}")
         return checkpoint

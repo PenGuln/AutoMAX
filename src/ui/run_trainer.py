@@ -199,16 +199,7 @@ def main():
 
     logger.info("Starting training...")
     train_log = trainer.train()
-
-    # 9. Final summary
     logger.info("Training complete.")
-    if train_log:
-        last = train_log[-1]
-        logger.info(
-            f"Final | epoch={last['epoch']} | loss={last['loss']:.4f} | "
-            f"lr={last['lr']} | metrics={last['metrics']}"
-        )
-
 
 if __name__ == "__main__":
     main()

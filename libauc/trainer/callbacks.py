@@ -17,6 +17,8 @@ class TrainerState:
         self.epoch = 0
         self.total_epoch = 0
         self.step = 0
+        self.train_log = []
+        self.train_summary = {}
 
 
 class TrainerCallback:
@@ -250,6 +252,13 @@ class CLICallback(TrainerCallback):
         train_loss: float = kwargs.get("train_loss", 0)
         lr:         float = kwargs.get("lr", 0)
 
+        state.train_log.append({
+            "metrics" : metrics,
+            "epoch" : state.epoch + 1,
+            "lr": lr,
+            "train_loss" : train_loss
+        })
+
         # -- Build the flat log dict (used for both wandb and console) ----
         log: dict[str, float] = {
             "epoch":      state.epoch + 1,
@@ -305,6 +314,34 @@ class CLICallback(TrainerCallback):
                 wandb.finish()
             except ImportError:
                 pass
+        
+        train_log = state.train_log
+        if not train_log:
+            raise ValueError("Training should have at least one evaluation record.")
+        train_summary = {}
+        target = list(train_log[0]['metrics'][0].keys())[0]
+        id = max(range(len(train_log)), key=lambda i : train_log[i]['metrics'][0][target])
+        num_evals = len(train_log[0]['metrics'])
+        if num_evals == 0:
+            raise ValueError("Evaluation should contain at least one dataset split.")
+        if num_evals == 1:
+            val = train_log[id]['metrics'][0][target]
+            logger.info(f"best validation {target}: {val}")
+            train_summary["val"] = val
+        elif num_evals == 2:
+            val = train_log[id]['metrics'][0][target]
+            score = train_log[id]['metrics'][1][target]
+            logger.info(f"best validation {target}: {val}, best test {target}: {score}")
+            train_summary["val"] = val
+            train_summary["test"] = score
+        else:
+            val = train_log[id]['metrics'][0][target]
+            score = sum([train_log[id]['metrics'][x][target] for x in range(1, num_evals)]) / (num_evals - 1)
+            logger.info(f"best validation {target}: {val}, best test avg. {target}: {score}")
+            train_summary["val"] = val
+            train_summary["test"] = score
+
+        state.train_summary = train_summary
 
     def on_step_end(self, args: TrainingArguments, state: TrainerState, **kwargs):
         """Event called at the end of a training step."""

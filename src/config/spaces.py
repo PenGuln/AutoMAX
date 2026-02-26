@@ -12,7 +12,7 @@ class AUCMLossSpace:
                 "default" : 0.003
             },
             "weight_decay" : {
-                "val" : (0.0, 0.001),
+                "val" : (0.0, 0.0001),
                 "default" : 1e-5
             },
             "momentum" : {
@@ -45,7 +45,7 @@ class CompositionalAUCLossSpace:
                 "default" : 0.002
             },
             "weight_decay" : {
-                "val" : (0.0, 0.001),
+                "val" : (0.0, 0.0001),
                 "default" : 1e-5
             },
         }
@@ -82,7 +82,7 @@ class APLossSpace:
                 "default" : 0.9
             },
             "weight_decay" : {
-                "val" : (0.0, 0.001),
+                "val" : (0.0, 0.0001),
                 "default" : 1e-5
             },
         }
@@ -115,7 +115,7 @@ class pAUC_CVaR_LossSpace:
                 "default" : 0.0
             },
             "weight_decay" : {
-                "val" : (0.0, 0.001),
+                "val" : (0.0, 0.0001),
                 "default" : 1e-5
             }
         }
@@ -156,7 +156,7 @@ class pAUC_DRO_LossSpace:
                 "default" : 0.9
             },
             "weight_decay" : {
-                "val" : (0.0, 0.001),
+                "val" : (0.0, 0.0001),
                 "default" : 1e-5
             }
         }
@@ -198,7 +198,7 @@ class tpAUC_KL_LossSpace:
                 "default" : 0.9
             },
             "weight_decay" : {
-                "val" : (0.0, 0.001),
+                "val" : (0.0, 0.0001),
                 "default" : 1e-5
             }
         }
@@ -245,7 +245,7 @@ class NDCGLossSpace:
                 "default" : 0.9
             },
             "weight_decay" : {
-                "val" : (0.0, 0.001),
+                "val" : (0.0, 0.0001),
                 "default" : 0.0
             }
         }
@@ -294,7 +294,7 @@ class CrossEntropyLossSpace1:
                 "default" : 0
             },
             "weight_decay" : {
-                "val" : (0.0, 0.001),
+                "val" : (0.0, 0.0001),
                 "default" : 0.0
             }
         }
@@ -318,7 +318,7 @@ class CrossEntropyLossSpace2:
                 "default" : 0.0
             },
             "weight_decay" : {
-                "val" : (0.0, 0.001),
+                "val" : (0.0, 0.0001),
                 "default" : 0.0
             }
         }
