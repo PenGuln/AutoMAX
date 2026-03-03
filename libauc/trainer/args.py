@@ -4,31 +4,6 @@ from typing import Any
 import logging
 logger = logging.getLogger(__name__)
 
-# Optimizer mappings
-_OPTIMIZERS = {
-    "PESG": ("libauc.optimizers", "PESG"),
-    "PDSCA": ("libauc.optimizers", "PDSCA"),
-    "SOAP": ("libauc.optimizers", "SOAP"),
-    "SOPA": ("libauc.optimizers", "SOPA"),
-    "SOPAs": ("libauc.optimizers", "SOPAs"),
-    "SOTAs": ("libauc.optimizers", "SOTAs"),
-    "SONG": ("libauc.optimizers", "SONG"),
-    "SGD": ("libauc.optimizers", "SGD"),
-    "Adam": ("libauc.optimizers", "Adam")
-}
-
-# Loss function mappings
-_LOSSES = {
-    "AUCMLoss": ("libauc.losses", "AUCMLoss"),
-    "CompositionalAUCLoss": ("libauc.losses", "CompositionalAUCLoss"),
-    "APLoss": ("libauc.losses", "APLoss"),
-    "pAUC_CVaR_Loss": ("libauc.losses", "pAUC_CVaR_Loss"),
-    "pAUC_DRO_Loss": ("libauc.losses", "pAUC_DRO_Loss"),
-    "tpAUC_KL_Loss": ("libauc.losses", "tpAUC_KL_Loss"),
-    "NDCGLoss": ("libauc.losses", "NDCGLoss"),
-    "CrossEntropyLoss": ("libauc.losses", "CrossEntropyLoss")
-}
-
 class TrainingArguments:
     """Training configuration arguments."""
     

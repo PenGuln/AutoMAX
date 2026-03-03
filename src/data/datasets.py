@@ -166,7 +166,7 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
         test_transform = transforms.Compose([
             transforms.ToTensor(),
         ])
-        task = kwargs.get("task", 0)
+        task = kwargs.get("task", None)
         train_dataset = IndexedDataset(ChestMNIST(split='train', transform=train_transform, download=True, root="./data"), task)
         eval_datasets = []
         for split in splits:

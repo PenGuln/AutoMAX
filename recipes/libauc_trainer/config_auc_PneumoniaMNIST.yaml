@@ -2,20 +2,20 @@
 # Dataset
 # ----------------------------------------------------------
 dataset:
-  name: PneumoniaMNIST         # passed to load_dataset(name=..., split=...)
-  eval_splits: [val, test]     # additional splits to evaluate after each epoch
+  name: PneumoniaMNIST
+  eval_splits: [val, test]
 
 # ----------------------------------------------------------
 # Model
 # ----------------------------------------------------------
 model:
-  name: resnet18               # see build_model() in run.py
+  name: resnet18
   pretrained: false
-  num_classes: 1               # 1 for binary classification
+  num_classes: 1
   in_channels: 1
 
 # ----------------------------------------------------------
-# Evaluation metrics  (computed on every eval_split each epoch)
+# Evaluation metrics
 # ----------------------------------------------------------
 metrics:
   - AUROC
@@ -32,20 +32,16 @@ training:
   epochs: 60
   batch_size: 128
   eval_batch_size: 256
-  sampling_rate: 0.2           # positive-sample ratio for DualSampler
+  sampling_rate: 0.2
   num_workers: 0
   SEED: 123
 
   # --- Loss function ---
-  # Choices: AUCMLoss | CompositionalAUCLoss | APLoss |
-  #          pAUC_CVaR_Loss | pAUC_DRO_Loss | tpAUC_KL_Loss |
-  #          NDCGLoss | CrossEntropyLoss
   loss: AUCMLoss
   loss_kwargs:
     margin: 1.0
 
   # --- Optimizer ---
-  # Choices: PESG | PDSCA | SOAP | SOPA | SOPAs | SOTAs | SONG | SGD | Adam
   optimizer: PESG
   optimizer_kwargs:
     lr: 0.1
@@ -53,12 +49,9 @@ training:
     epoch_decay: 3.0e-3
     momentum: 0.9
 
-  # --- LR schedule: epochs at which to decay the learning rate ---
-  # Integers are used as-is; floats are treated as fractions of total epochs
-  # e.g. 0.5 with epochs=50  ->  decay at epoch 25
   decay_epochs: [0.5, 0.75]
 
   # --- Checkpointing ---
   output_path: ./output
-  resume_from_checkpoint: true
-  save_checkpoint_every: 10     # save a .pt file every N epochs
+  resume_from_checkpoint: false
+  save_checkpoint_every: 10

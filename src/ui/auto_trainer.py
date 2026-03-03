@@ -163,25 +163,39 @@ def main():
     eval_splits   = dataset_cfg.get("eval_splits", ["val"])
     logger.info(f"Loading train and {eval_splits} split of dataset: {dataset_name}")
     train_dataset, eval_datasets = load_dataset(dataset_name, splits=eval_splits, **dataset_kwargs)
- 
+
+    labels = np.array(train_dataset.targets)
+    if len(labels.shape) == 1:
+        num_tasks = len(np.unique(labels)) 
+    else: 
+        num_tasks = labels.shape[-1]
+    
+    logger.info(f"Number of tasks: {num_tasks}")
+    
+    if num_tasks >= 2:
+        multilable = True
+    else:
+        multilable = False
+
     # 5. Build metric function
     metric_fn = build_metric(metric_names)
 
-    default_optimizer_config = parse_defaultconfig(training_cfg["optimizer"])["optimizer"]["space"]
-    default_loss_config = parse_defaultconfig(training_cfg["loss"])["loss"]["space"]
+    default_optimizer_config = parse_defaultconfig(training_cfg["optimizer"], multilable)["optimizer"]
+    default_loss_config = parse_defaultconfig(training_cfg["loss"], multilable)["loss"]
     optimizer_kwargs = training_cfg.get("optimizer_kwargs", {})
-    optimizer_kwargs = {**default_optimizer_config, **optimizer_kwargs}
+    optimizer_kwargs = {**default_optimizer_config["space"], **optimizer_kwargs}
     loss_kwargs = training_cfg.get("loss_kwargs", {})
-    loss_kwargs = {**default_loss_config, **loss_kwargs}
-
+    if multilable:
+        loss_kwargs["num_labels"] = num_tasks
+    loss_kwargs = {**default_loss_config["space"], **loss_kwargs}
 
     # 6. Construct TrainingArguments
     #    trainset/evalsets store human-readable identifiers; the actual
     #    Dataset objects are passed separately to Trainer below.
     train_args = autopartial(
         partial(TrainingArguments,
-            optimizer=training_cfg["optimizer"],
-            loss=training_cfg["loss"],
+            optimizer=default_optimizer_config["type"],
+            loss=default_loss_config["type"],
             SEED=training_cfg.get("SEED", 42),
             batch_size=training_cfg.get("batch_size", 128),
             eval_batch_size=training_cfg.get("eval_batch_size", 128),

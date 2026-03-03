@@ -31,6 +31,39 @@ class AUCMLossSpace:
         }
     }
 
+class MultiLabelAUCMLossSpace:
+    optimizer = {
+        "type" : "PESG",
+        "space" : {
+            "lr" : {
+                "val": (0.0001, 0.1),
+                "default" : 0.1,
+                "log": True
+            },
+            "epoch_decay" : {
+                "val" : (0.0, 0.01),
+                "default" : 0.003
+            },
+            "weight_decay" : {
+                "val" : (0.0, 0.0001),
+                "default" : 1e-5
+            },
+            "momentum" : {
+                "val" : (0.8, 0.99),
+                "default" : 0.9
+            }
+        }
+    }
+    loss = {
+        "type" : "MultiLabelAUCMLoss",
+        "space" : {
+            "margin" : {
+                "val" : [0.6, 0.8, 1.0],
+                "default" : 1.0
+            }
+        }
+    }
+
 class CompositionalAUCLossSpace:
     optimizer = {
         "type" : "PDSCA",
@@ -101,6 +134,43 @@ class APLossSpace:
         }
     }
 
+class mAPLossSpace:
+    optimizer = {
+        "type" : "SOAP",
+        "space" : {
+            "lr" : {
+                "val": (0.0001, 0.1),
+                "default" : 0.001,
+                "log": True
+            },
+            "epoch_decay" : {
+                "val" : (0.0, 0.01),
+                "default" : 0.0
+            },
+            "momentum" : {
+                "val" : (0.8, 0.99),
+                "default" : 0.9
+            },
+            "weight_decay" : {
+                "val" : (0.0, 0.0001),
+                "default" : 1e-5
+            },
+        }
+    }
+    loss = {
+        "type" : "mAPLoss",
+        "space" : {
+            "gamma" :{
+                "val" : (0.0, 1.0),
+                "default" : 0.9
+            },
+            "margin" : {
+                "val" : [0.6, 0.8, 1.0],
+                "default" : 1.0
+            }
+        }
+    }
+    
 class pAUC_CVaR_LossSpace:
     optimizer = {
         "type" : "SOPA",
@@ -121,8 +191,51 @@ class pAUC_CVaR_LossSpace:
         }
     }
     loss = {
-        "type" : "pAUC_CVaR_Loss",
+        "type" : "pAUCLoss",
         "space" : {
+            "mode" :{
+                "val" : "SOPA"
+            },
+            "margin" : {
+                "val" : [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
+                "default" : 1.0
+            },
+            "beta" :{
+                "val" : 0.2
+            },
+            "eta" : {
+                "val" : (0.01, 10),
+                "default" : 0.1,
+                "log" : True
+            }
+        }
+    }
+
+class MultiLabelpAUC_CVaR_LossSpace:
+    optimizer = {
+        "type" : "SOPA",
+        "space" : {
+            "lr" : {
+                "val": (0.0001, 0.1),
+                "default" : 0.1,
+                "log": True
+            },
+            "epoch_decay" : {
+                "val" : (0.0, 0.01),
+                "default" : 0.0
+            },
+            "weight_decay" : {
+                "val" : (0.0, 0.0001),
+                "default" : 1e-5
+            }
+        }
+    }
+    loss = {
+        "type" : "MultiLabelpAUCLoss",
+        "space" : {
+            "mode" :{
+                "val" : "SOPA"
+            },
             "margin" : {
                 "val" : [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
                 "default" : 1.0
@@ -162,8 +275,56 @@ class pAUC_DRO_LossSpace:
         }
     }
     loss = {
-        "type" : "pAUC_DRO_Loss",
+        "type" : "pAUCLoss",
         "space" : {
+            "mode" :{
+                "val" : "SOPAs"
+            },
+            "gamma": {
+                "val" : (0.0, 1.0),
+                "default" : 0.9
+            },
+            "margin" : {
+                "val" : [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
+                "default" : 1.0
+            },
+            "Lambda":{
+                "val" : (0.1, 10.0),
+                "default" : 1.0,
+                "log" : True
+            }
+        }
+    }
+
+class MultiLabelpAUC_DRO_LossSpace:
+    optimizer = {
+        "type" : "SOPAs",
+        "space" : {
+            "lr" : {
+                "val": (0.0001, 0.1),
+                "default" : 0.001,
+                "log": True
+            },
+            "epoch_decay" : {
+                "val" : (0.0, 0.01),
+                "default" : 0.0
+            },
+            "momentum" : {
+                "val" : (0.8, 0.99),
+                "default" : 0.9
+            },
+            "weight_decay" : {
+                "val" : (0.0, 0.0001),
+                "default" : 1e-5
+            }
+        }
+    }
+    loss = {
+        "type" : "MultiLabelpAUCLoss",
+        "space" : {
+            "mode" :{
+                "val" : "SOPAs"
+            },
             "gamma": {
                 "val" : (0.0, 1.0),
                 "default" : 0.9
@@ -204,8 +365,11 @@ class tpAUC_KL_LossSpace:
         }
     }
     loss = {
-        "type" : "tpAUC_KL_Loss",
+        "type" : "pAUCLoss",
         "space" : {
+            "mode" :{
+                "val" : "SOTAs"
+            },
             "tau" : {
                 "val" : (0.1, 10.0),
                 "default" : 1.0,
@@ -226,6 +390,57 @@ class tpAUC_KL_LossSpace:
             }
         }
     }
+
+class MultiLabeltpAUC_KL_LossSpace:
+    optimizer = {
+        "type" : "SOTAs",
+        "space" : {
+            "lr" : {
+                "val": (0.0001, 0.1),
+                "default" : 0.1,
+                "log": True
+            },
+            "epoch_decay" : {
+                "val" : (0.0, 0.01),
+                "default" : 0.0
+            },
+            "momentum" : {
+                "val" : (0.8, 0.99),
+                "default" : 0.9
+            },
+            "weight_decay" : {
+                "val" : (0.0, 0.0001),
+                "default" : 1e-5
+            }
+        }
+    }
+    loss = {
+        "type" : "MultiLabelpAUCLoss",
+        "space" : {
+            "mode" :{
+                "val" : "SOTAs"
+            },
+            "tau" : {
+                "val" : (0.1, 10.0),
+                "default" : 1.0,
+                "log" : True
+            },
+            "gammas": {
+                "val" : [(0.1, 0.1), (0.5, 0.5), (0.9, 0.9)],
+                "default" : (0.9, 0.9)
+            },
+            "margin" : {
+                "val" : [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
+                "default" : 1.0
+            },
+            "Lambda":{
+                "val" : (0.1, 10.0),
+                "default" : 1.0,
+                "log" : True
+            }
+        }
+    }
+
 
 class NDCGLossSpace:
     optimizer = {
@@ -276,7 +491,7 @@ class NDCGLossSpace:
         }
     }
 
-class CrossEntropyLossSpace1:
+class SGDSpace:
     optimizer = {
         "type" : "SGD",
         "space" : {
@@ -304,7 +519,7 @@ class CrossEntropyLossSpace1:
         "space" : {}
     }
 
-class CrossEntropyLossSpace2:
+class AdamSpace:
     optimizer = {
         "type" : "Adam",
         "space" : {

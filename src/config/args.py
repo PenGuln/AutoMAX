@@ -2,6 +2,7 @@
 Configuration and argument parsing for AutoAUC.
 """
 
+from audioop import mul
 import json
 from typing import Any
 from ConfigSpace import ConfigurationSpace
@@ -107,7 +108,7 @@ def parse_hyperparameters_from_dict(items: dict[str, Any]):
     return ret
 
 
-def parse_defaultconfig(type_name):
+def parse_defaultconfig(type_name, multilable = False):
     """
     Parse default configuration for a given type.
     
@@ -118,25 +119,38 @@ def parse_defaultconfig(type_name):
         Dictionary with optimizer and loss configurations
     """
     if type_name in ['AUCMLoss', 'PESG']:
-        from .spaces import AUCMLossSpace as Sp
+        if multilable:
+            from .spaces import MultiLabelAUCMLossSpace as Sp
+        else:
+            from .spaces import AUCMLossSpace as Sp
     elif type_name in ['CompositionalAUCLoss', 'PDSCA']:
-        from .spaces import CompositionalAUCLossSpace as Sp
+            from .spaces import CompositionalAUCLossSpace as Sp
     elif type_name in ['APLoss', 'SOAP']:
-        from .spaces import APLossSpace as Sp
+        if multilable:
+            from .spaces import mAPLossSpace as Sp
+        else:
+            from .spaces import APLossSpace as Sp
     elif type_name in ['pAUC_CVaR_Loss', 'SOPA']:
-        from .spaces import pAUC_CVaR_LossSpace as Sp
+        if multilable:
+            from .spaces import MultiLabelpAUC_CVaR_LossSpace as Sp
+        else:
+            from .spaces import pAUC_CVaR_LossSpace as Sp
     elif type_name in ['pAUC_DRO_Loss', 'SOPAs']:
-        from .spaces import pAUC_DRO_LossSpace as Sp
+        if multilable:
+            from .spaces import MultiLabelpAUC_DRO_LossSpace as Sp
+        else:
+            from .spaces import pAUC_DRO_LossSpace as Sp
     elif type_name in ['tpAUC_KL_Loss', 'SOTAs']:
-        from .spaces import tpAUC_KL_LossSpace as Sp
+        if multilable:
+            from .spaces import MultiLabeltpAUC_KL_LossSpace as Sp
+        else:
+            from .spaces import tpAUC_KL_LossSpace as Sp
     elif type_name in ['NDCGLoss', 'SONG']:
         from .spaces import NDCGLossSpace as Sp
-    elif type_name in ['SGD']:
-        from .spaces import CrossEntropyLossSpace1 as Sp
+    elif type_name in ['CrossEntropyLoss', 'SGD']:
+        from .spaces import SGDSpace as Sp
     elif type_name in ['Adam']:
-        from .spaces import CrossEntropyLossSpace2 as Sp
-    elif type_name in ['CrossEntropyLoss']:
-        from .spaces import CrossEntropyLossSpace2 as Sp
+        from .spaces import AdamSpace as Sp
     else:
         raise ValueError(f"unsupported loss {type_name}")
     

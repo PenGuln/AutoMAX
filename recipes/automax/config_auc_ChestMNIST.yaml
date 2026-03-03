@@ -11,7 +11,7 @@ dataset:
 model:
   name: resnet18               # see build_model() in run.py
   pretrained: false
-  num_classes: 1               # 1 for binary classification
+  num_classes: 14              
   in_channels: 1
 
 # ----------------------------------------------------------

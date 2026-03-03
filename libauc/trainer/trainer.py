@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, M
 from torch.utils.data import Dataset
 import importlib
 
-from .args import TrainingArguments, _OPTIMIZERS, _LOSSES
+from .args import TrainingArguments
 from .callbacks import CallbackHandler, TrainerCallback, TrainerState
 
 logger = logging.getLogger(__name__)
@@ -126,10 +126,8 @@ class Trainer:
         Returns:
             Optimizer class
         """
-        opt_name, opt_cls_name = _OPTIMIZERS[name]
-        opt = importlib.import_module(opt_name)
-        # print(importlib.util.find_spec(opt_name).origin)
-        opt_cls = getattr(opt, opt_cls_name, None)
+        opt = importlib.import_module("libauc.optimizers")
+        opt_cls = getattr(opt, name, None)
         return opt_cls
 
 
@@ -143,16 +141,20 @@ class Trainer:
         Returns:
             Loss function class
         """
-        loss_name, loss_cls_name = _LOSSES[name]
-        loss = importlib.import_module(loss_name)
-        loss_cls = getattr(loss, loss_cls_name, None)
+        loss = importlib.import_module("libauc.losses")
+        loss_cls = getattr(loss, name, None)
         return loss_cls
 
     def _construct_optimizer_and_loss(self, model, train_args: TrainingArguments):
         """Construct optimizer and loss function based on configuration."""
         # Setup loss function
         loss_cls = self._get_loss(train_args.loss)
-        if train_args.loss in ["APLoss", "pAUC_DRO_Loss", "tpAUC_KL_Loss"]:
+        if train_args.loss in ["pAUCLoss", "MultiLabelpAUCLoss"]:
+            if train_args.loss_kwargs["mode"] in ['SOPA']:
+                loss_fn = loss_cls(data_len=self.data_len, pos_len=self.pos_len, **train_args.loss_kwargs)
+            else:
+                loss_fn = loss_cls(data_len=self.data_len, **train_args.loss_kwargs)
+        elif train_args.loss in ["mAPLoss", "APLoss", "pAUC_DRO_Loss", "tpAUC_KL_Loss"]:
             loss_fn = loss_cls(data_len=self.data_len, **train_args.loss_kwargs)
         elif train_args.loss in ["pAUC_CVaR_Loss"]:
             loss_fn = loss_cls(data_len=self.data_len, pos_len=self.pos_len, **train_args.loss_kwargs)

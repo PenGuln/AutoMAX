@@ -12,8 +12,7 @@ dataset:
 # ----------------------------------------------------------
 model:
   name: resnet18
-  pretrained: true
-  pretrained_path: ckpts/ce_pretrained_model_soap.pth
+  pretrained: false
   num_classes: 1
   in_channels: 3
 
@@ -21,7 +20,7 @@ model:
 # Evaluation metrics
 # ----------------------------------------------------------
 metrics:
-  - AUPRC
+  - AUROC
 
 # ----------------------------------------------------------
 # Training
@@ -29,7 +28,7 @@ metrics:
 training:
   # --- Experiment tracking ---
   project_name: libauc
-  experiment_name: APLoss_cifar10_default
+  experiment_name: opAUCLoss_cifar10_default
   
   # --- Core hyperparameters ---
   epochs: 60
@@ -40,13 +39,14 @@ training:
   SEED: 2023
 
   # --- Loss function ---
-  loss: APLoss
+  loss: pAUCLoss
   loss_kwargs:
     margin: 0.6
     gamma: 0.1
+    mode: 1w
 
   # --- Optimizer ---
-  optimizer: SOAP
+  optimizer: SOPAs
   optimizer_kwargs:
     lr: 1.0e-3
     mode: adam
