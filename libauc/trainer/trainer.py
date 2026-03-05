@@ -31,6 +31,7 @@ def build_model(model_cfg: dict):
 
     name        = model_cfg.get("name", "").lower()
     pretrained  = model_cfg.get("pretrained", False)
+    pretrained_remote = model_cfg.get("pretrained_remote", False)
     num_classes = model_cfg.get("num_classes", 1)
     in_channels = model_cfg.get("in_channels", 3)
 
@@ -39,13 +40,19 @@ def build_model(model_cfg: dict):
         model = resnet20(last_activation=None, num_classes=num_classes)
     elif name == "resnet18":
         from libauc.models import resnet18
-        model = resnet18(last_activation=None, in_channels=in_channels, num_classes=num_classes)
+        model = resnet18(pretrained=pretrained_remote, last_activation=None, in_channels=in_channels, num_classes=num_classes)
+    elif name == "densenet121":
+        from libauc.models import densenet121
+        model = densenet121(pretrained=pretrained_remote, last_activation=None, activations='relu', num_classes=num_classes)
     else:
         raise ValueError(f"Unknown model '{name}'. Please add it to build_model().")
 
     model = model.cuda()
     if pretrained:
-        state_dict = torch.load(model_cfg.get("pretrained_path"))
+        state_dict = torch.load(model_cfg.get("pretrained_path"), weights_only = False)
+        if 'model_state_dict' in state_dict:
+            state_dict = state_dict['model_state_dict']
+
         filtered = {k:v for k,v in state_dict.items() if 'fc' not in k and 'linear' not in k}
         msg = model.load_state_dict(filtered, False)
         logger.info(msg)
