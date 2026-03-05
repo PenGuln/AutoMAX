@@ -167,6 +167,8 @@ class Trainer:
         """Construct optimizer and loss function based on configuration."""
         # Setup loss function
         loss_cls = self._get_loss(train_args.loss)
+        if train_args.loss in ["BCELoss", "CrossEntropyLoss"]:
+            train_args.loss_kwargs.pop("num_labels")
         if train_args.loss in ["pAUCLoss", "MultiLabelpAUCLoss"]:
             if train_args.loss_kwargs["mode"] in ['SOPA']:
                 loss_fn = loss_cls(data_len=self.data_len, pos_len=self.pos_len, **train_args.loss_kwargs)
@@ -240,6 +242,9 @@ class Trainer:
                 
                 # Compute loss
                 if self.args.loss == "CrossEntropyLoss":
+                    loss = self.loss_fn(y_pred, targets)
+                if self.args.loss == "BCELoss":
+                    y_pred = torch.sigmoid(y_pred)
                     loss = self.loss_fn(y_pred, targets)
                 else:
                     y_pred = torch.sigmoid(y_pred)
