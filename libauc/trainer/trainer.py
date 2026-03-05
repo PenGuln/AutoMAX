@@ -239,7 +239,7 @@ class Trainer:
                 y_pred = model(data)
                 
                 # Compute loss
-                if isinstance(self.loss_fn, libauc.losses.losses.CrossEntropyLoss):
+                if self.args.loss == "CrossEntropyLoss":
                     loss = self.loss_fn(y_pred, targets)
                 else:
                     y_pred = torch.sigmoid(y_pred)
