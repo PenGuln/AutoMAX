@@ -148,8 +148,19 @@ class Trainer:
         Returns:
             Loss function class
         """
-        loss = importlib.import_module("libauc.losses")
-        loss_cls = getattr(loss, name, None)
+        # Try libauc first
+        libauc_losses = importlib.import_module("libauc.losses")
+        loss_cls = getattr(libauc_losses, name, None)
+        
+        # Fall back to torch.nn if not found in libauc
+        if loss_cls is None:
+            import torch.nn as nn
+            loss_cls = getattr(nn, name, None)
+        
+        # Raise error if not found in either
+        if loss_cls is None:
+            raise ValueError(f"Loss function '{name}' not found in libauc.losses or torch.nn")
+        
         return loss_cls
 
     def _construct_optimizer_and_loss(self, model, train_args: TrainingArguments):
@@ -226,12 +237,12 @@ class Trainer:
 
                 data, targets, index = data.cuda(), targets.cuda(), index.cuda()
                 y_pred = model(data)
-                y_pred = torch.sigmoid(y_pred)
                 
                 # Compute loss
                 if isinstance(self.loss_fn, libauc.losses.losses.CrossEntropyLoss):
                     loss = self.loss_fn(y_pred, targets)
                 else:
+                    y_pred = torch.sigmoid(y_pred)
                     loss = self.loss_fn(y_pred, targets, index=index)
                 
                 # Optimizer step
