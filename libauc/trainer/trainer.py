@@ -168,7 +168,7 @@ class Trainer:
         # Setup loss function
         loss_cls = self._get_loss(train_args.loss)
         if train_args.loss in ["BCELoss", "CrossEntropyLoss"]:
-            train_args.loss_kwargs.pop("num_labels")
+            train_args.loss_kwargs.pop("num_labels", None)
         if train_args.loss in ["pAUCLoss", "MultiLabelpAUCLoss"]:
             if train_args.loss_kwargs["mode"] in ['SOPA']:
                 loss_fn = loss_cls(data_len=self.data_len, pos_len=self.pos_len, **train_args.loss_kwargs)
