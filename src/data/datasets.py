@@ -100,13 +100,14 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
     TODO: Implement each dataset branch below.
     """
     name = name.lower()
+    root_path = kwargs.get("root_path", "./data")
 
     if name == "catvsdog":
         raise NotImplementedError(f"Dataset '{name}' is not yet implemented.")
 
     elif name == "chexpert":
         from libauc.datasets import CheXpert
-        root = "./data/CheXpert-v1.0-small/"
+        root = os.path.join(root_path, "CheXpert-v1.0-small")
         train_dataset = IndexedDataset(CheXpert(csv_path=root+'train.csv', image_root_path=root, use_upsampling=False, use_frontal=True, image_size=224, mode='train', class_index=-1, verbose=False))
         eval_datasets = []
         for split in splits:
@@ -118,8 +119,8 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
     elif name == "cifar10":
         from libauc.datasets import CIFAR10
         # load data as numpy arrays
-        train_data, train_targets = CIFAR10(root='./data', train=True).as_array()
-        test_data, test_targets  = CIFAR10(root='./data', train=False).as_array()
+        train_data, train_targets = CIFAR10(root=root_path, train=True).as_array()
+        test_data, test_targets  = CIFAR10(root=root_path, train=False).as_array()
 
         imratio = kwargs.get("imratio", 0.1)
         # generate imbalanced data
@@ -149,13 +150,13 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             transforms.ToTensor(),
             transforms.Normalize(mean=[.5], std=[.5])
         ])
-        train_dataset = IndexedDataset(PneumoniaMNIST(split='train', transform=train_transform, download=True, root="./data"))
+        train_dataset = IndexedDataset(PneumoniaMNIST(split='train', transform=train_transform, download=True, root=root_path))
         eval_datasets = []
         for split in splits:
             if split == 'val':
-                eval_datasets.append(IndexedDataset(PneumoniaMNIST(split='val',   transform=test_transform,  download=True, root="./data")))
+                eval_datasets.append(IndexedDataset(PneumoniaMNIST(split='val',   transform=test_transform,  download=True, root=root_path)))
             elif split == 'test':
-                eval_datasets.append(IndexedDataset(PneumoniaMNIST(split='test',  transform=test_transform,  download=True, root="./data")))
+                eval_datasets.append(IndexedDataset(PneumoniaMNIST(split='test',  transform=test_transform,  download=True, root=root_path)))
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
@@ -167,13 +168,13 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
         test_transform = transforms.Compose([
             transforms.ToTensor(),
         ])
-        train_dataset = IndexedDataset(BreastMNIST(split='train', transform=train_transform, download=True, root="./data"))
+        train_dataset = IndexedDataset(BreastMNIST(split='train', transform=train_transform, download=True, root=root_path))
         eval_datasets = []
         for split in splits:
             if split == 'val':
-                eval_datasets.append(IndexedDataset(BreastMNIST(split='val', transform=test_transform, download=True, root="./data")))
+                eval_datasets.append(IndexedDataset(BreastMNIST(split='val', transform=test_transform, download=True, root=root_path)))
             elif split == 'test':
-                eval_datasets.append(IndexedDataset(BreastMNIST(split='test', transform=test_transform, download=True, root="./data")))
+                eval_datasets.append(IndexedDataset(BreastMNIST(split='test', transform=test_transform, download=True, root=root_path)))
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
@@ -186,21 +187,21 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             transforms.ToTensor(),
         ])
         task = kwargs.get("task", None)
-        train_dataset = IndexedDataset(ChestMNIST(split='train', transform=train_transform, download=True, root="./data"), task)
+        train_dataset = IndexedDataset(ChestMNIST(split='train', transform=train_transform, download=True, root=root_path), task)
         eval_datasets = []
         for split in splits:
             if split == 'val':
-                eval_datasets.append(IndexedDataset(ChestMNIST(split='val', transform=test_transform, download=True, root="./data"), task))
+                eval_datasets.append(IndexedDataset(ChestMNIST(split='val', transform=test_transform, download=True, root=root_path), task))
             elif split == 'test':
-                eval_datasets.append(IndexedDataset(ChestMNIST(split='test', transform=test_transform, download=True, root="./data"), task))
+                eval_datasets.append(IndexedDataset(ChestMNIST(split='test', transform=test_transform, download=True, root=root_path), task))
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
     
     elif name == "ogbg-molpcba":
         import os
-        dataset = GraphDataset(name = 'ogbg-molpcba', root = "./data")
-        labels = pd.read_csv(os.path.join('./data/ogbg_molpcba/raw', 'graph-label.csv.gz'), compression='gzip', header = None).values
+        dataset = GraphDataset(name = 'ogbg-molpcba', root = root_path)
+        labels = pd.read_csv(os.path.join(root_path, 'ogbg_molpcba/raw', 'graph-label.csv.gz'), compression='gzip', header = None).values
 
         #### get the official train_val_test split
         split_idx = dataset.get_idx_split()
@@ -233,8 +234,8 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
         return train_dataset, eval_datasets
     
     elif name == "raid":
-        train_df = pd.read_parquet("data/raid-training-stratified.parquet")
-        test_df = pd.read_parquet("data/raid-training-stratified.parquet")
+        train_df = pd.read_parquet(os.path.join(root_path, "raid-training-stratified.parquet"))
+        test_df = pd.read_parquet(os.path.join(root_path, "raid-training-stratified.parquet"))
         train_dataset = TextDataset(train_df, "generation", "target")
         eval_datasets = []
         for split in splits:

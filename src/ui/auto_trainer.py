@@ -175,7 +175,8 @@ def main():
             resume_from_checkpoint=training_cfg.get("resume_from_checkpoint", True),
             save_checkpoint_every=training_cfg.get("save_checkpoint_every", 5),
             project_name=training_cfg.get("project_name", "libauc"),
-            experiment_name=training_cfg["experiment_name"]
+            experiment_name=training_cfg["experiment_name"],
+            verbose=training_cfg.get("verbose", 1)
         ),
         optimizer_kwargs=autopartial(dict, **parse_hyperparameters_from_dict(optimizer_kwargs)),
         loss_kwargs=autopartial(dict, **parse_hyperparameters_from_dict(loss_kwargs))
