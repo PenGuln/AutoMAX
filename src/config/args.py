@@ -108,7 +108,7 @@ def parse_hyperparameters_from_dict(items: dict[str, Any]):
     return ret
 
 
-def parse_defaultconfig(type_name, multilable = False):
+def parse_defaultconfig(type_name, multilable = False, kwargs = {}):
     """
     Parse default configuration for a given type.
     
@@ -130,17 +130,17 @@ def parse_defaultconfig(type_name, multilable = False):
             from .spaces import mAPLossSpace as Sp
         else:
             from .spaces import APLossSpace as Sp
-    elif type_name in ['pAUC_CVaR_Loss', 'SOPA']:
+    elif type_name in ['pAUC_CVaR_Loss', 'SOPA'] or (type_name == 'pAUCLoss' and kwargs.get("mode", None) == 'SOPA'):
         if multilable:
             from .spaces import MultiLabelpAUC_CVaR_LossSpace as Sp
         else:
             from .spaces import pAUC_CVaR_LossSpace as Sp
-    elif type_name in ['pAUC_DRO_Loss', 'SOPAs']:
+    elif type_name in ['pAUC_DRO_Loss', 'SOPAs'] or (type_name == 'pAUCLoss' and kwargs.get("mode", None) == '1w'):
         if multilable:
             from .spaces import MultiLabelpAUC_DRO_LossSpace as Sp
         else:
             from .spaces import pAUC_DRO_LossSpace as Sp
-    elif type_name in ['tpAUC_KL_Loss', 'SOTAs']:
+    elif type_name in ['tpAUC_KL_Loss', 'SOTAs'] or (type_name == 'pAUCLoss' and kwargs.get("mode", None) == '2w'):
         if multilable:
             from .spaces import MultiLabeltpAUC_KL_LossSpace as Sp
         else:

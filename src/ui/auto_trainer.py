@@ -18,6 +18,7 @@ from ..config.args import AutoMAXConfigration, parse_defaultconfig, parse_hyperp
 from ..core.auto_auc import AutoMAX
 from ..data.datasets import load_dataset
 from functools import partial
+from .helpers import build_metric
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,40 +26,6 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Metric builder
-# ---------------------------------------------------------------------------
-
-def build_metric(metric_names):
-    """
-    Build a metric function from a list of metric name strings.
-
-    Args:
-        metric_names: e.g. ["AUROC", "AUPRC", "ACC"]
-
-    Returns:
-        Callable (test_true: np.ndarray, test_pred: np.ndarray) -> dict[str, float]
-    """
-    from sklearn import metrics as skmetrics
-
-    def metric_fn(test_true, test_pred):
-        results = {}
-        for name in metric_names:
-            name_upper = name.upper()
-            if name_upper == "AUROC":
-                results["AUROC"] = auc_roc_score(test_true, test_pred)
-            elif name_upper == "AUPRC":
-                results["AUPRC"] = auc_prc_score(test_true, test_pred)
-            elif name_upper == "ACC":
-                results["ACC"] = skmetrics.accuracy_score(
-                    test_true, (test_pred >= 0.5).astype(int)
-                )
-            else:
-                logger.warning(f"Unknown metric '{name}', skipping.")
-        return results
-
-    return metric_fn
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -152,6 +119,7 @@ def main():
     dataset_cfg   = cfg["dataset"]
     model_cfg     = cfg["model"]
     metric_names  = cfg.get("metrics", ["AUROC"])
+    metric_kwargs = cfg.get("metric_kwargs", [])
 
     # 2. Reproducibility
     set_seed(training_cfg.get("SEED", 42))
@@ -178,15 +146,15 @@ def main():
         multilable = False
 
     # 5. Build metric function
-    metric_fn = build_metric(metric_names)
+    metric_fn = build_metric(metric_names, metric_kwargs)
 
-    default_optimizer_config = parse_defaultconfig(training_cfg["optimizer"], multilable)["optimizer"]
-    default_loss_config = parse_defaultconfig(training_cfg["loss"], multilable)["loss"]
     optimizer_kwargs = training_cfg.get("optimizer_kwargs", {})
+    default_optimizer_config = parse_defaultconfig(training_cfg["optimizer"], multilable, optimizer_kwargs)["optimizer"]
     optimizer_kwargs = {**default_optimizer_config["space"], **optimizer_kwargs}
     loss_kwargs = training_cfg.get("loss_kwargs", {})
     if multilable:
         loss_kwargs["num_labels"] = num_tasks
+    default_loss_config = parse_defaultconfig(training_cfg["loss"], multilable, loss_kwargs)["loss"]
     loss_kwargs = {**default_loss_config["space"], **loss_kwargs}
 
     # 6. Construct TrainingArguments

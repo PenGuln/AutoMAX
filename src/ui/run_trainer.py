@@ -12,9 +12,9 @@ import numpy as np
 import torch
 import yaml
 from libauc.trainer import TrainingArguments, Trainer, CLICallback
-from libauc.metrics import auc_prc_score, auc_roc_score
 
 from ..data.datasets import load_dataset
+from .helpers import build_metric
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,40 +23,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Metric builder
-# ---------------------------------------------------------------------------
-
-def build_metric(metric_names):
-    """
-    Build a metric function from a list of metric name strings.
-
-    Args:
-        metric_names: e.g. ["AUROC", "AUPRC", "ACC"]
-
-    Returns:
-        Callable (test_true: np.ndarray, test_pred: np.ndarray) -> dict[str, float]
-    """
-    from sklearn import metrics as skmetrics
-
-    def metric_fn(test_true, test_pred):
-        results = {}
-        for name in metric_names:
-            name_upper = name.upper()
-            if name_upper == "AUROC":
-                results["AUROC"] = auc_roc_score(test_true, test_pred)
-            elif name_upper == "AUPRC":
-                results["AUPRC"] = auc_prc_score(test_true, test_pred)
-            elif name_upper == "ACC":
-                results["ACC"] = skmetrics.accuracy_score(
-                    test_true, (test_pred >= 0.5).astype(int)
-                )
-            else:
-                logger.warning(f"Unknown metric '{name}', skipping.")
-        return results
-
-    return metric_fn
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -149,6 +115,7 @@ def main():
     dataset_cfg   = cfg["dataset"]
     model_cfg     = cfg["model"]
     metric_names  = cfg.get("metrics", ["AUROC"])
+    metric_kwargs = cfg.get("metric_kwargs", [])
 
     # 2. Reproducibility
     set_seed(training_cfg.get("SEED", 42))
@@ -175,7 +142,7 @@ def main():
         multilable = False
 
     # 5. Build metric function
-    metric_fn = build_metric(metric_names)
+    metric_fn = build_metric(metric_names, metric_kwargs)
 
     optimizer_kwargs=training_cfg.get("optimizer_kwargs", {})
     loss_kwargs=training_cfg.get("loss_kwargs", {})

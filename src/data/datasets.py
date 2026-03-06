@@ -5,6 +5,8 @@ import numpy as np
 from PIL import Image
 from libauc.utils import ImbalancedDataGenerator
 import pandas as pd
+from ogb.graphproppred import PygGraphPropPredDataset
+import torch
 
 # ---------------------------------------------------------------------------
 # Dataset loading
@@ -56,6 +58,15 @@ class ImageDataset(Dataset):
             image = self.transform_test(image)
         return image, target, idx
 
+class GraphDataset(PygGraphPropPredDataset):
+   def __getitem__(self, idx):
+      if isinstance(idx, (int,np.int64)):
+            item = self.get(self.indices()[idx])
+            item.idx = torch.LongTensor([idx])
+            return item
+      else:
+            return self.index_select(idx)
+
 class TextDataset(Dataset):
     def __init__(self, dataframe, text_col, label_col):
         self.len = len(dataframe)
@@ -94,8 +105,16 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
         raise NotImplementedError(f"Dataset '{name}' is not yet implemented.")
 
     elif name == "chexpert":
-        raise NotImplementedError(f"Dataset '{name}' is not yet implemented.")
-
+        from libauc.datasets import CheXpert
+        root = "./data/CheXpert-v1.0-small/"
+        train_dataset = IndexedDataset(CheXpert(csv_path=root+'train.csv', image_root_path=root, use_upsampling=False, use_frontal=True, image_size=224, mode='train', class_index=-1, verbose=False))
+        eval_datasets = []
+        for split in splits:
+            if split == 'val':
+                eval_datasets.append(IndexedDataset(CheXpert(csv_path=root+'valid.csv',  image_root_path=root, use_upsampling=False, use_frontal=True, image_size=224, mode='valid', class_index=-1, verbose=False)))
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        return train_dataset, eval_datasets
     elif name == "cifar10":
         from libauc.datasets import CIFAR10
         # load data as numpy arrays
@@ -178,6 +197,28 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
     
+    elif name == "ogbg-molpcba":
+        import os
+        dataset = GraphDataset(name = 'ogbg-molpcba', root = "./data")
+        labels = pd.read_csv(os.path.join('./data/ogbg_molpcba/raw', 'graph-label.csv.gz'), compression='gzip', header = None).values
+
+        #### get the official train_val_test split
+        split_idx = dataset.get_idx_split()
+        #### get training lable for task_0
+        train_labels = labels[split_idx["train"]][:,0]
+
+        #### remove samples which have 'nan' as their labels
+        not_nan = ~np.isnan(train_labels)
+        train_labels = train_labels[not_nan]
+        train_dataset = dataset[split_idx["train"]][not_nan]
+        eval_datasets = []
+        for split in splits:
+            if split == 'val':
+                eval_datasets.append(dataset[split_idx["test"]][~np.isnan(labels[split_idx["test"]][:,0] )])
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        return train_dataset, eval_datasets
+
     elif name == "rip":
         train_df = pd.read_parquet("hf://datasets/ShantanuT01/RIP-Dataset/train.parquet")
         test_df = pd.read_parquet("hf://datasets/ShantanuT01/RIP-Dataset/test.parquet")
