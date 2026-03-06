@@ -23,6 +23,7 @@ metrics:
   - AUROC
 metric_kwargs:
   - max_fpr: 0.3
+    min_tpr: 0.7
 
 # ----------------------------------------------------------
 # Training
@@ -30,7 +31,7 @@ metric_kwargs:
 training:
   # --- Experiment tracking ---
   project_name: libauc
-  experiment_name: opAUCLoss_cifar10_default
+  experiment_name: tpAUCLoss_cifar10_default
   
   # --- Core hyperparameters ---
   epochs: 60
@@ -43,12 +44,13 @@ training:
   # --- Loss function ---
   loss: pAUCLoss
   loss_kwargs:
-    margin: 0.6
-    gamma: 0.1
-    mode: 1w
+    Lambda: 0.5
+    tau: 1.0
+    gammas: [0.5, 0.5]
+    mode: 2w
 
   # --- Optimizer ---
-  optimizer: SOPAs
+  optimizer: SOTAs
   optimizer_kwargs:
     lr: 1.0e-3
     mode: adam
@@ -60,3 +62,11 @@ training:
   output_path: ./output
   resume_from_checkpoint: false
   save_checkpoint_every: 10
+
+automax:
+  deterministic: true
+  n_trials: 5
+  SEED: 42
+  name: n5_tpAUCLoss_cifar10_default
+  output_path: ./automax_output
+  overwrite: false

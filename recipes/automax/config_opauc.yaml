@@ -60,3 +60,11 @@ training:
   output_path: ./output
   resume_from_checkpoint: false
   save_checkpoint_every: 10
+
+automax:
+  deterministic: true
+  n_trials: 5
+  SEED: 42
+  name: n5_opAUCLoss_cifar10_default
+  output_path: ./automax_output
+  overwrite: false
