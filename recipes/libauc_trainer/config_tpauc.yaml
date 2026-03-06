@@ -5,7 +5,7 @@ dataset:
   name: cifar10
   eval_splits: [val, test]
   kwargs:
-    imratio: 0.02
+    imratio: 0.2
 
 # ----------------------------------------------------------
 # Model
