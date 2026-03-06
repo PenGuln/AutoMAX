@@ -44,17 +44,10 @@ training:
   # --- Loss function ---
   loss: pAUCLoss
   loss_kwargs:
-    Lambda: 0.5
-    tau: 1.0
-    gammas: [0.5, 0.5]
     mode: 2w
 
   # --- Optimizer ---
   optimizer: SOTAs
-  optimizer_kwargs:
-    lr: 1.0e-3
-    mode: adam
-    weight_decay: 2.0e-4
 
   decay_epochs: [30, 45]
 

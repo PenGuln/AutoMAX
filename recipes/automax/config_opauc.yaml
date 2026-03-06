@@ -43,16 +43,12 @@ training:
   # --- Loss function ---
   loss: pAUCLoss
   loss_kwargs:
-    margin: 0.6
-    gamma: 0.1
     mode: 1w
 
   # --- Optimizer ---
   optimizer: SOPAs
   optimizer_kwargs:
-    lr: 1.0e-3
     mode: adam
-    weight_decay: 2.0e-4
 
   decay_epochs: [30, 45]
 
