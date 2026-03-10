@@ -13,54 +13,8 @@ from .callbacks import CallbackHandler, TrainerCallback, TrainerState
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Model builder
-# ---------------------------------------------------------------------------
 
-def build_model(model_cfg: dict):
-    """
-    Build a model from the 'model' config block.
 
-    Expected keys:
-        name        - architecture name (string)
-        pretrained  - bool (default False)
-        num_classes - int  (default 1 for binary classification)
-
-    TODO: Register additional architectures as needed.
-    """
-
-    name        = model_cfg.get("name", "").lower()
-    pretrained  = model_cfg.get("pretrained", False)
-    pretrained_remote = model_cfg.get("pretrained_remote", False)
-    num_classes = model_cfg.get("num_classes", 1)
-    in_channels = model_cfg.get("in_channels", 3)
-
-    if name == "resnet20":
-        from libauc.models import resnet20
-        model = resnet20(last_activation=None, num_classes=num_classes)
-    elif name == "resnet18":
-        from libauc.models import resnet18
-        model = resnet18(pretrained=pretrained_remote, last_activation=None, in_channels=in_channels, num_classes=num_classes)
-    elif name == "densenet121":
-        from libauc.models import densenet121
-        model = densenet121(pretrained=pretrained_remote, last_activation=None, activations='relu', num_classes=num_classes)
-    else:
-        raise ValueError(f"Unknown model '{name}'. Please add it to build_model().")
-
-    model = model.cuda()
-    if pretrained:
-        state_dict = torch.load(model_cfg.get("pretrained_path"), weights_only = False)
-        if 'model_state_dict' in state_dict:
-            state_dict = state_dict['model_state_dict']
-
-        filtered = {k:v for k,v in state_dict.items() if 'fc' not in k and 'linear' not in k}
-        msg = model.load_state_dict(filtered, False)
-        logger.info(msg)
-        if hasattr(model, 'fc'):
-            model.fc.reset_parameters()
-        if hasattr(model, 'linear'):
-            model.linear.reset_parameters()
-    return model
 
 class Trainer:
     """
@@ -89,7 +43,7 @@ class Trainer:
         """
         
         self.args = train_args
-        self.model = build_model(model_cfg)
+        self._build_model(model_cfg)
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.state = TrainerState()
@@ -123,6 +77,52 @@ class Trainer:
         """Add a callback to the trainer."""
         self.callback_handler.add_callback(callback)
     
+    def _build_model(self, model_cfg: dict):
+        """
+        Build a model from the 'model' config block.
+
+        Expected keys:
+            name        - architecture name (string)
+            pretrained  - bool (default False)
+            num_classes - int  (default 1 for binary classification)
+
+        TODO: Register additional architectures as needed.
+        """
+
+        name        = model_cfg.get("name", "").lower()
+        pretrained  = model_cfg.get("pretrained", False)
+        pretrained_remote = model_cfg.get("pretrained_remote", False)
+        num_classes = model_cfg.get("num_classes", 1)
+        in_channels = model_cfg.get("in_channels", 3)
+
+        if name == "resnet20":
+            from libauc.models import resnet20
+            model = resnet20(last_activation=None, num_classes=num_classes)
+        elif name == "resnet18":
+            from libauc.models import resnet18
+            model = resnet18(pretrained=pretrained_remote, last_activation=None, in_channels=in_channels, num_classes=num_classes)
+        elif name == "densenet121":
+            from libauc.models import densenet121
+            model = densenet121(pretrained=pretrained_remote, last_activation=None, activations='relu', num_classes=num_classes)
+        else:
+            raise ValueError(f"Unknown model '{name}'. Please add it to build_model().")
+
+        model = model.cuda()
+        if pretrained:
+            state_dict = torch.load(model_cfg.get("pretrained_path"), weights_only = False)
+            if 'model_state_dict' in state_dict:
+                state_dict = state_dict['model_state_dict']
+
+            filtered = {k:v for k,v in state_dict.items() if 'fc' not in k and 'linear' not in k}
+            msg = model.load_state_dict(filtered, False)
+            logger.info(msg)
+            if hasattr(model, 'fc'):
+                model.fc.reset_parameters()
+            if hasattr(model, 'linear'):
+                model.linear.reset_parameters()
+        
+        self.model = model
+
     def _get_optimizer(self, name):
         """
         Get an optimizer class by name.

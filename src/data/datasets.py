@@ -200,7 +200,18 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
     
     elif name == "ogbg-molpcba":
         import os
-        dataset = GraphDataset(name = 'ogbg-molpcba', root = root_path)
+        import torch.serialization
+        # PyTorch 2.6 changed torch.load default to weights_only=True, which
+        # breaks OGB's internal load of PyG objects.  Allowlist the required
+        # globals so the dataset can be loaded safely without disabling the guard.
+        try:
+            from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
+            from torch_geometric.data.storage import GlobalStorage
+            torch.serialization.add_safe_globals([DataEdgeAttr, DataTensorAttr, GlobalStorage])
+        except ImportError:
+            pass  # older PyG versions don't need this
+
+        dataset = GraphDataset(name='ogbg-molpcba', root=root_path)
         labels = pd.read_csv(os.path.join(root_path, 'ogbg_molpcba/raw', 'graph-label.csv.gz'), compression='gzip', header = None).values
 
         #### get the official train_val_test split
@@ -215,10 +226,12 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
         eval_datasets = []
         for split in splits:
             if split == 'val':
+                eval_datasets.append(train_dataset)
+            elif split == 'test':
                 eval_datasets.append(dataset[split_idx["test"]][~np.isnan(labels[split_idx["test"]][:,0] )])
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
-        return train_dataset, eval_datasets
+        return train_dataset, eval_datasets, train_labels
 
     elif name == "rip":
         train_df = pd.read_parquet("hf://datasets/ShantanuT01/RIP-Dataset/train.parquet")

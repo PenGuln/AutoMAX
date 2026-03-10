@@ -32,3 +32,6 @@ class TrainingArguments:
         # wandb config
         self.project_name = kwargs.pop("project_name")
         self.experiment_name = kwargs.pop("experiment_name")
+
+        # printing
+        self.verbose  = kwargs.pop("verbose")

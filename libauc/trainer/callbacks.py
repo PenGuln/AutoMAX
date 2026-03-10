@@ -3,6 +3,7 @@ Training callbacks for AutoAUC framework.
 """
 
 import logging
+import sys
 from typing import Any, Dict, List, Optional
 
 from .args import TrainingArguments
@@ -212,21 +213,96 @@ class DefaultCallback(TrainerCallback):
         state.step += 1
 
 
+def _format_metrics(log: dict, skip_keys: tuple = ("epoch", "train_loss", "lr")) -> str:
+    """Format metric key-value pairs into a display string, excluding skip_keys."""
+    return " | ".join(f"{k}: {v:.4f}" for k, v in log.items() if k not in skip_keys)
+
+
+def _build_log_dict(
+    metrics: list,
+    train_loss: float,
+    lr: float,
+    epoch: int,
+) -> dict:
+    """
+    Build a flat log dict from epoch metrics, suitable for console output and wandb.
+
+    Returns a dict with keys: epoch, train_loss, lr, and one entry per metric per dataset.
+    Single-dataset runs use bare metric names; multi-dataset runs prefix with 'ds{N}/'.
+    """
+    log: dict[str, float] = {
+        "epoch":      epoch,
+        "train_loss": train_loss,
+        "lr":         lr,
+    }
+
+    single = len(metrics) == 1
+    for ds_idx, ds_metrics in enumerate(metrics):
+        if not isinstance(ds_metrics, dict):
+            continue
+        prefix = "" if single else f"eval_splits{ds_idx + 1}/"
+        for k, v in ds_metrics.items():
+            if k in ("epoch", "lr", "loss"):
+                continue
+            try:
+                log[f"{prefix}{k}"] = float(v)
+            except (ValueError, TypeError):
+                pass
+
+    return log
+
+
 class CLICallback(TrainerCallback):
-    """Callback for command-line interface with detailed logging."""
-    
+    # Width of the progress bar fill (verbose=1)
+    _BAR_WIDTH = 30
+
     def __init__(self) -> None:
         super().__init__()
         self._use_wandb = True
     
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _wandb_log(self, log: dict, step: int) -> None:
+        """Log a dict to wandb, silently skipping if unavailable."""
+        if not self._use_wandb:
+            return
+        try:
+            import wandb
+            wandb.log(log, step=step)
+        except Exception as e:
+            logger.warning(f"wandb logging failed: {e}")
+
+    def _render_bar(self, epoch: int, total: int, log: dict) -> str:
+        filled   = int(self._BAR_WIDTH * epoch / total) if total else 0
+        empty    = self._BAR_WIDTH - filled
+        bar      = "█" * filled + "·" * empty
+        metrics  = _format_metrics(log)
+        metrics_str = f" | {metrics}" if metrics else ""
+        return (
+            f"\rEpoch [{bar}] {epoch}/{total} | "
+            f"Loss: {log.get('train_loss', 0):.4f}"
+            f"{metrics_str} | "
+            f"LR: {log.get('lr', 0):.6f}"
+        )
+
+    # ------------------------------------------------------------------
+    # Callback events
+    # ------------------------------------------------------------------
+
     def on_train_begin(self, args: TrainingArguments, state: TrainerState, **kwargs):
         """Event called at the beginning of training."""
+        # Initialise wandb regardless of verbosity
         try:
             import wandb
             wandb.init(project=args.project_name, name=args.experiment_name, reinit=True)
         except ImportError:
             logger.warning("wandb not installed; skipping wandb logging")
             self._use_wandb = False
+
+        if args.verbose == 0:
+            return
 
         optimizer = kwargs.get("optimizer")
         lr_str = f"{optimizer.lr:.6f}" if optimizer else "N/A"
@@ -253,92 +329,86 @@ class CLICallback(TrainerCallback):
         lr:         float = kwargs.get("lr", 0)
 
         state.train_log.append({
-            "metrics" : metrics,
-            "epoch" : state.epoch + 1,
-            "lr": lr,
-            "train_loss" : train_loss
+            "metrics":    metrics,
+            "epoch":      state.epoch + 1,
+            "lr":         lr,
+            "train_loss": train_loss,
         })
 
-        # -- Build the flat log dict (used for both wandb and console) ----
-        log: dict[str, float] = {
-            "epoch":      state.epoch + 1,
-            "train_loss": train_loss,
-            "lr":         lr,
-        }
+        log = _build_log_dict(metrics, train_loss, lr, epoch=state.epoch + 1)
 
-        single = len(metrics) == 1
-        first_metric_val = None
+        # ---- Console output (mode-dependent) ----------------------------
+        if args.verbose == 1:
+            # Overwrite the same line with an updated progress bar
+            bar_str = self._render_bar(state.epoch + 1, state.total_epoch, log)
+            sys.stdout.write(bar_str)
+            sys.stdout.flush()
+            # Print a newline only on the very last epoch so the bar stays
+            # on screen after training ends
+            if state.epoch + 1 >= state.total_epoch:
+                sys.stdout.write("\n")
+                sys.stdout.flush()
 
-        for ds_idx, ds_metrics in enumerate(metrics):
-            if not isinstance(ds_metrics, dict):
-                continue
-            prefix = "" if single else f"ds{ds_idx + 1}/"
-            for k, v in ds_metrics.items():
-                if k in ("epoch", "lr", "loss"):
-                    continue
-                try:
-                    fval = float(v)
-                    log[f"{prefix}{k}"] = fval
-                    if first_metric_val is None:
-                        first_metric_val = fval
-                except (ValueError, TypeError):
-                    pass
+        elif args.verbose == 2:
+            # One line per epoch (original behaviour)
+            display_parts = [
+                f"Epoch {state.epoch + 1}/{state.total_epoch}",
+                f"Loss: {train_loss:.4f}",
+            ]
+            display_parts += [
+                f"{k}: {v:.4f}"
+                for k, v in log.items()
+                if k not in ("epoch", "train_loss", "lr")
+            ]
+            display_parts.append(f"LR: {lr:.6f}")
+            print(" | ".join(display_parts))
 
-        # -- Console output -----------------------------------------------
-        display_parts = [f"Epoch {state.epoch + 1}/{state.total_epoch}",
-                         f"Loss: {train_loss:.4f}"]
-        for k, v in log.items():
-            if k in ("epoch", "train_loss", "lr"):
-                continue
-            display_parts.append(f"{k}: {v:.4f}")
-        display_parts.append(f"LR: {lr:.6f}")
-        print(" | ".join(display_parts))
-
-        # -- wandb logging ------------------------------------------------
-        if self._use_wandb:
-            try:
-                import wandb
-                wandb.log(log, step=state.epoch + 1)
-            except Exception as e:
-                logger.warning(f"wandb logging failed: {e}")
+        # ---- wandb logging (always active unless unavailable) -----------
+        self._wandb_log(log, step=state.epoch + 1)
 
         state.epoch += 1
 
     def on_train_end(self, args: TrainingArguments, state: TrainerState, **kwargs):
         """Event called at the end of training."""
-        print("-" * 50)
-        print(f"Training complete.")
+        if args.verbose != 0:
+            print("-" * 50)
+            print("Training complete.")
+
         if self._use_wandb:
             try:
                 import wandb
                 wandb.finish()
             except ImportError:
                 pass
-        
+
         train_log = state.train_log
         if not train_log:
             raise ValueError("Training should have at least one evaluation record.")
+
         train_summary = {}
-        target = list(train_log[0]['metrics'][0].keys())[0]
-        id = max(range(len(train_log)), key=lambda i : train_log[i]['metrics'][0][target])
+        target    = list(train_log[0]['metrics'][0].keys())[0]
+        id        = max(range(len(train_log)), key=lambda i: train_log[i]['metrics'][0][target])
         num_evals = len(train_log[0]['metrics'])
+
         if num_evals == 0:
             raise ValueError("Evaluation should contain at least one dataset split.")
-        if num_evals == 1:
+        elif num_evals == 1:
             val = train_log[id]['metrics'][0][target]
             logger.info(f"best validation {target}: {val}")
             train_summary["val"] = val
         elif num_evals == 2:
-            val = train_log[id]['metrics'][0][target]
+            val   = train_log[id]['metrics'][0][target]
             score = train_log[id]['metrics'][1][target]
             logger.info(f"best validation {target}: {val}, best test {target}: {score}")
-            train_summary["val"] = val
+            train_summary["val"]  = val
             train_summary["test"] = score
         else:
-            val = train_log[id]['metrics'][0][target]
-            score = sum([train_log[id]['metrics'][x][target] for x in range(1, num_evals)]) / (num_evals - 1)
+            val   = train_log[id]['metrics'][0][target]
+            score = sum(
+                train_log[id]['metrics'][x][target] for x in range(1, num_evals)
+            ) / (num_evals - 1)
             logger.info(f"best validation {target}: {val}, best test avg. {target}: {score}")
-            train_summary["val"] = val
+            train_summary["val"]  = val
             train_summary["test"] = score
 
         state.train_summary = train_summary
