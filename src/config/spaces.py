@@ -391,6 +391,58 @@ class tpAUC_KL_LossSpace:
         }
     }
 
+class tpAUC_CVaR_lossSpace:
+    optimizer = {
+        "type" : "STACO",
+        "space" : {
+            "lr" : {
+                "val": (0.0001, 0.01),
+                "default" : 0.001,
+                "log": True
+            },
+            "momentum" : {
+                "val" : (0.8, 0.99),
+                "default" : 0.9
+            },
+            "weight_decay" : {
+                "val" : (0.0, 0.0001),
+                "default" : 1e-5
+            }
+        }
+    }
+    loss = {
+        "type" : "tpAUC_CVaR_loss",
+        "space" : {
+            "threshold" : {
+                "val" : [0.3, 0.5, 0.7],
+                "default" : 0.5
+            },
+            "alpha" : {
+                "val" : (0.0001, 0.01),
+                "default" : 0.001,
+                "log" : True
+            },
+            "beta_0" : {
+                "val" : (0.0001, 0.01),
+                "default" : 0.001,
+                "log" : True
+            },
+            "beta_1" : {
+                "val" : (0.0001, 0.01),
+                "default" : 0.001,
+                "log" : True
+            },
+            "theta_0" : {
+                "val" : [0.3, 0.5, 0.7],
+                "default" : 0.5
+            },
+            "theta_1" : {
+                "val" : [0.3, 0.5, 0.7],
+                "default" : 0.5
+            }
+        }
+    }
+
 class MultiLabeltpAUC_KL_LossSpace:
     optimizer = {
         "type" : "SOTAs",

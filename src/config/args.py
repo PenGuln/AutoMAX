@@ -145,6 +145,8 @@ def parse_defaultconfig(type_name, multilable = False, kwargs = {}):
             from .spaces import MultiLabeltpAUC_KL_LossSpace as Sp
         else:
             from .spaces import tpAUC_KL_LossSpace as Sp
+    elif type_name in ['tpAUC_CVaR_loss', 'STACO']:
+        from .spaces import tpAUC_CVaR_lossSpace as Sp
     elif type_name in ['NDCGLoss', 'SONG']:
         from .spaces import NDCGLossSpace as Sp
     elif type_name in ['CrossEntropyLoss', 'SGD']:

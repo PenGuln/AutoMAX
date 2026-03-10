@@ -11,6 +11,7 @@ __all__ = ['AUCMLoss',
            'pAUC_CVaR_Loss',
            'pAUC_DRO_Loss',
            'tpAUC_KL_Loss',
+           'tpAUC_CVaR_loss',
            'pAUCLoss',
            'PairwiseAUCLoss',
            'meanAveragePrecisionLoss',
@@ -637,6 +638,95 @@ class tpAUC_KL_Loss(torch.nn.Module):
         p.detach_()
         loss = torch.mean(p * surr_loss)
         return loss
+
+
+class tpAUC_CVaR_loss(torch.nn.Module):
+
+    r"""
+        Two-way Partial AUC (tpAUC) loss using CVaR-based optimization.
+        
+        This loss function optimizes the Two-way Partial AUC metric, which focuses on 
+        a specific region of the ROC curve where both FPR is bounded by :math:`\beta` 
+        and TPR is bounded by :math:`\alpha`.
+
+        Args:
+            data_length (int): number of positive samples in the training dataset.
+            threshold (float, optional): margin term for squared-hinge surrogate loss (default: ``0.5``).
+            alpha (float, optional): step size for updating dual variable (default: ``1e-1``).
+            beta_0 (float, optional): step size for updating s1 (default: ``1e-1``).
+            beta_1 (float, optional): step size for updating s2 (default: ``1e-1``).
+            theta_0 (float, optional): the rate parameter for TPR (default: ``0.5``).
+            theta_1 (float, optional): the rate parameter for FPR (default: ``0.5``).
+            device (torch.device, optional): the device used for optimization, e.g., 'cpu' or 'cuda' (default: ``None``).
+
+        Example:
+            >>> loss_fn = tpAUC_CVaR_loss(data_length=1000, alpha=1e-1, beta_0=1e-1, beta_1=1e-1, theta_0=0.5, theta_1=0.5)
+            >>> y_pred = torch.randn(32, 1, requires_grad=True)
+            >>> y_true = torch.randint(0, 2, (32,))
+            >>> index = torch.arange(16)  # indices of positive samples (local positive indices in batch)
+            >>> loss = loss_fn(y_pred, y_true, index)
+            >>> loss.backward()
+
+    """
+    def __init__(self, 
+                data_length, 
+                threshold=0.5, 
+                alpha=1e-1, 
+                beta_0=1e-1, 
+                beta_1=1e-1, 
+                theta_0=0.5, 
+                theta_1=0.5,
+                surr_loss='squared_hinge',
+                device=None):
+        super(tpAUC_CVaR_loss, self).__init__()
+        if not device:
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        else:
+            self.device = device   
+        self.beta_0 = beta_0
+        self.beta_1 = beta_1
+        self.alpha = alpha
+        self.data_length = data_length
+        self.theta_0 = theta_0
+        self.theta_1 = theta_1
+        self.u = torch.tensor([1.0]*data_length).view(-1, 1).to(self.device) 
+        self.s1 = torch.tensor([0.0]*data_length).view(-1, 1).to(self.device) 
+        self.s2 = torch.tensor([0.0]).view(-1, 1).to(self.device) 
+        self.dual_var = torch.tensor([1.0]*data_length).view(-1, 1).to(self.device)
+        self.threshold = threshold
+        self.surrogate_loss = get_surrogate_loss(surr_loss)
+
+    def forward(self, y_pred, y_true, index, **kwargs): 
+
+        pos_mask = (y_true == 1).squeeze() 
+        neg_mask = (y_true == 0).squeeze() 
+        assert sum(pos_mask) > 0, "Input data has no positive sample! Please use 'libauc.sampler.DualSampler' for data resampling!"
+        if len(index) ==len(y_pred): 
+            index = index[pos_mask]   # indices for positive samples only 
+
+        v_p = y_pred[y_true==1].view(-1,1)
+        v_n = y_pred[y_true==0].view(1,-1)
+        mat_n = v_n.repeat(len(v_p), 1)
+        loss = self.surrogate_loss(self.threshold, v_p - mat_n)
+
+        p1 = (loss.detach() > self.s1[index]).float()
+        tp_loss = ((loss)/self.theta_1*p1).mean(dim=-1,keepdim=True)
+        tp_loss = (tp_loss/self.theta_0)
+
+        comp_u = self.s1[index] + torch.clip(loss.detach()-self.s1[index], min=0)/self.theta_1
+        comp_u = comp_u.mean(dim=-1, keepdim=True)
+        self.u[index] = comp_u
+
+        self.dual_var[index] = torch.clamp(self.dual_var[index] + self.alpha * (self.u[index]-self.s2)/self.theta_0,
+                                                        min=0.0,
+                                                        max=1)
+        
+        weighted_loss = torch.mean(self.dual_var[index] * tp_loss)
+        self.s1[index] -= self.beta_0*(self.dual_var[index]/self.theta_0*(1-p1.mean(dim=-1, keepdim=True)/self.theta_1))
+        self.s2 -= self.beta_1 * (1-torch.mean(self.dual_var[index])/self.theta_0)
+
+        return weighted_loss
+
                            
 class pAUCLoss(torch.nn.Module):
     r"""

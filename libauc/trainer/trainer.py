@@ -178,6 +178,8 @@ class Trainer:
             loss_fn = loss_cls(data_len=self.data_len, **train_args.loss_kwargs)
         elif train_args.loss in ["pAUC_CVaR_Loss"]:
             loss_fn = loss_cls(data_len=self.data_len, pos_len=self.pos_len, **train_args.loss_kwargs)
+        elif train_args.loss in ["tpAUC_CVaR_loss"]:
+            loss_fn = loss_cls(data_length=self.data_len, **train_args.loss_kwargs)
         else:
             loss_fn = loss_cls(**train_args.loss_kwargs)
 
