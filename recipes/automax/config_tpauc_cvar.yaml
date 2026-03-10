@@ -1,0 +1,66 @@
+# ----------------------------------------------------------
+# Dataset
+# ----------------------------------------------------------
+dataset:
+  name: cifar10
+  eval_splits: [val, test]
+  kwargs:
+    imratio: 0.2
+
+# ----------------------------------------------------------
+# Model
+# ----------------------------------------------------------
+model:
+  name: resnet18
+  pretrained: false
+  num_classes: 1
+  in_channels: 3
+
+# ----------------------------------------------------------
+# Evaluation metrics
+# ----------------------------------------------------------
+metrics:
+  - AUROC
+metric_kwargs:
+  - max_fpr: 0.3
+    min_tpr: 0.7
+
+# ----------------------------------------------------------
+# Training
+# ----------------------------------------------------------
+training:
+  # --- Experiment tracking ---
+  project_name: libauc
+  experiment_name: tpAUC_CVaR_loss_cifar10_default
+  
+  # --- Core hyperparameters ---
+  epochs: 60
+  batch_size: 128
+  eval_batch_size: 256
+  sampling_rate: 0.5
+  num_workers: 0
+  SEED: 2023
+
+  # --- Loss function ---
+  loss: tpAUC_CVaR_loss
+  loss_kwargs:
+    surr_loss: squared_hinge
+
+  # --- Optimizer ---
+  optimizer: STACO
+
+  decay_epochs: [30, 45]
+
+  # --- Checkpointing ---
+  output_path: ./output
+  resume_from_checkpoint: false
+  save_checkpoint_every: 10
+
+automax:
+  deterministic: true
+  n_trials: 5
+  SEED: 42
+  name: n5_tpAUC_CVaR_loss_cifar10_default
+  output_path: ./automax_output
+  overwrite: false
+

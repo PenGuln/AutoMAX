@@ -5,6 +5,7 @@ from .soap import *
 from .sopa import *
 from .sopa_s import *
 from .sota_s import *
+from .staco import *
 from .song import *
 from .sogclr import *
 from .isogclr import *
