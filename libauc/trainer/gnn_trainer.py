@@ -185,6 +185,7 @@ class GNNTrainer(Trainer):
                 state_dict = state_dict["model_state_dict"]
             msg = model.load_state_dict(state_dict, strict=False)
             logger.info(f"GNN pretrained weights loaded: {msg}")
+            model.graph_pred_linear.reset_parameters()
 
         logger.info(
             f"Built {cls_name} | emb_dim={constructor_kwargs['emb_dim']} "

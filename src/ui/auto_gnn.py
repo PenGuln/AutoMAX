@@ -134,18 +134,11 @@ def main():
     eval_splits    = dataset_cfg.get("eval_splits", ["val"])
 
     logger.info(f"Loading train and {eval_splits} splits of dataset: {dataset_name}")
-    train_dataset, eval_datasets = load_dataset(
+    train_dataset, eval_datasets, train_labels = load_dataset(
         dataset_name, splits=eval_splits, **dataset_kwargs
     )
 
-    labels = np.array(train_dataset.targets)
-    if labels.ndim == 1:
-        num_tasks = len(np.unique(labels))
-    else:
-        num_tasks = labels.shape[-1]
-    logger.info(f"Number of tasks: {num_tasks}")
-
-    multilabel = num_tasks >= 2
+    multilabel = False
 
     # ── Metric ──────────────────────────────────────────────────────────────
     metric_fn = build_metric(metric_names, metric_kwargs)
@@ -158,8 +151,7 @@ def main():
     optimizer_kwargs = {**default_optimizer_config["space"], **optimizer_kwargs}
 
     loss_kwargs = training_cfg.get("loss_kwargs", {})
-    if multilabel:
-        loss_kwargs["num_labels"] = num_tasks
+    
     default_loss_config = parse_defaultconfig(
         training_cfg["loss"], multilabel, loss_kwargs
     )["loss"]
@@ -212,6 +204,7 @@ def main():
             model_cfg     = model_cfg,
             train_dataset = train_dataset,
             eval_dataset  = eval_datasets if eval_datasets else None,
+            train_labels  = train_labels,
             metric        = metric_fn,
             callbacks     = [CLICallback()],
             decay_epochs  = decay_epochs,

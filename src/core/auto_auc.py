@@ -91,10 +91,8 @@ class AutoMAX:
 
         trail_log = trainer.state.train_summary
         trail_log["space"] = space
-        if 'test' in trail_log.keys():
-            score = trail_log['test']
-        else:
-            score = trail_log['val']
+
+        score = trail_log['val']
         
         if score > self.best_score:
             logger.info(f"Found new best configuration! Updating the best checkpoint.")

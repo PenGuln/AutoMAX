@@ -106,10 +106,6 @@ class APLossSpace:
                 "default" : 0.001,
                 "log": True
             },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
-            },
             "momentum" : {
                 "val" : (0.8, 0.99),
                 "default" : 0.9
