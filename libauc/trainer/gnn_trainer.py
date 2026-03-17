@@ -56,7 +56,6 @@ class GNNTrainer(Trainer):
         model_cfg:          dict,
         train_dataset,
         eval_dataset:       Optional[List]                               = None,
-        train_labels = None,
         metric:             Optional[Callable[..., Mapping[str, float]]] = None,
         callbacks:          Optional[List[TrainerCallback]]              = None,
         decay_epochs:       Optional[List[int]]                          = None,
@@ -84,7 +83,6 @@ class GNNTrainer(Trainer):
         self.decay_epochs        = decay_epochs or []
         self.decay_factor        = decay_factor
         self.train_eval_dataset  = train_eval_dataset
-        self.train_labels        = train_labels
 
         # The parent will call build_model() (CNN path) and produce a
         # placeholder model.  We swap it out at the start of train().
@@ -205,24 +203,17 @@ class GNNTrainer(Trainer):
         from libauc.sampler import DualSampler
 
         sampler = DualSampler(
-            None,
+            self.train_dataset,
             train_args.batch_size,
-            labels=self.train_labels,
             sampling_rate=train_args.sampling_rate,
         )
-        if self.args.loss == "BCELoss":
-            loader = PyGDataLoader(
-                self.train_dataset,
-                batch_size  = train_args.batch_size,
-                num_workers = train_args.num_workers,
-            )
-        else:
-            loader = PyGDataLoader(
-                self.train_dataset,
-                batch_size  = train_args.batch_size,
-                sampler     = sampler,
-                num_workers = train_args.num_workers,
-            )
+
+        loader = PyGDataLoader(
+            self.train_dataset,
+            batch_size  = train_args.batch_size,
+            sampler     = sampler,
+            num_workers = train_args.num_workers,
+        )
         return sampler, loader
 
     def _get_eval_dataloader(self, dataset, train_args: TrainingArguments):
@@ -307,10 +298,10 @@ class GNNTrainer(Trainer):
             for batch in self.trainloader:
                 self.callback_handler.on_step_begin(self.args, self.state)
 
-                batch   = batch.cuda()
-                pred    = self._forward(model, batch)
-                targets = batch.y[:, 0]   # task-0 labels (OGB convention)
-                index   = batch.idx       # sample indices required by AUC losses
+                data, targets, index = batch
+                data = data.cuda()
+                targets = targets.cuda()
+                pred    = self._forward(model, data)
 
                 # Compute loss
                 if self.args.loss == "CrossEntropyLoss":
@@ -374,10 +365,12 @@ class GNNTrainer(Trainer):
 
         with torch.no_grad():
             for batch in loader:
-                batch = batch.cuda()
-                pred  = self._forward(model, batch)
+                data, targets, index = batch
+                data = data.cuda()
+                targets = targets.cuda()
+                pred    = self._forward(model, data)
                 pred_list.append(pred.cpu().detach().numpy())
-                true_list.append(batch.y[:, 0].cpu().detach().numpy())
+                true_list.append(targets.cpu().detach().numpy())
 
         y_true = np.concatenate(true_list)
         y_pred = np.concatenate(pred_list)

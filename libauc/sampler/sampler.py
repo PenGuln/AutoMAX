@@ -223,9 +223,10 @@ class DualSampler(ControlledDataSampler):
             if self.pos_ptr+self.num_pos > self.pos_len:
                 # TODO: edge case - dataset has very limited positive samples e.g., < half of batch size
                 temp = self.pos_indices[self.pos_ptr:]
+                loops = (self.num_pos - self.pos_len + self.pos_ptr) // self.pos_len
                 np.random.shuffle(self.pos_indices)
                 self.pos_ptr = (self.pos_ptr+self.num_pos)%self.pos_len
-                self.sampled[start_index:start_index+self.num_pos] = np.concatenate((temp, self.pos_indices[:self.pos_ptr]))
+                self.sampled[start_index:start_index+self.num_pos] = np.concatenate((temp, np.tile(self.pos_indices, loops), self.pos_indices[:self.pos_ptr]))
             else:
                 self.sampled[start_index:start_index+self.num_pos]= self.pos_indices[self.pos_ptr:self.pos_ptr+self.num_pos]
                 self.pos_ptr += self.num_pos
