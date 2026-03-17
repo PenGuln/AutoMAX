@@ -301,6 +301,7 @@ class GNNTrainer(Trainer):
                 data, targets, index = batch
                 data = data.cuda()
                 targets = targets.cuda()
+                index = index.cuda()
                 pred    = self._forward(model, data)
 
                 # Compute loss
