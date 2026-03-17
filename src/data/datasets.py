@@ -58,6 +58,31 @@ class ImageDataset(Dataset):
             image = self.transform_test(image)
         return image, target, idx
 
+class ChemicalDataset(Dataset):
+    def __init__(self, dataset, class_id):
+        self.targets = []
+        # dataset.indices() gives the actual indices into the full dataset
+        indices = dataset.indices()
+        assert(len(dataset.data.y.shape) == 2)
+        y = dataset.data.y[indices, class_id]
+        not_nan = ~np.isnan(y.numpy())  # shape matches len(dataset)
+        self.targets = y[not_nan]
+        self.dataset = dataset[not_nan]
+        try:
+            tmp=np.array(self.targets)
+            pos = len(tmp[tmp==1])
+            print('positive: ' + str(pos))
+            print('positive rate: '+ str(float(pos)/len(tmp)))
+        except:
+            print('positive rate error ')
+
+    def __len__(self):
+        return len(self.targets)
+
+    def __getitem__(self, idx):
+        return self.dataset[idx], self.targets[idx], int(idx)
+
+
 class GraphDataset(PygGraphPropPredDataset):
    def __getitem__(self, idx):
       if isinstance(idx, (int,np.int64)):
@@ -197,41 +222,78 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
-    
-    elif name == "ogbg-molpcba":
+
+    elif name == "ogbg-moltox21":
         import os
         import torch.serialization
-        # PyTorch 2.6 changed torch.load default to weights_only=True, which
-        # breaks OGB's internal load of PyG objects.  Allowlist the required
-        # globals so the dataset can be loaded safely without disabling the guard.
         try:
             from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
             from torch_geometric.data.storage import GlobalStorage
             torch.serialization.add_safe_globals([DataEdgeAttr, DataTensorAttr, GlobalStorage])
         except ImportError:
-            pass  # older PyG versions don't need this
+            pass
 
-        dataset = GraphDataset(name='ogbg-molpcba', root=root_path)
-        labels = pd.read_csv(os.path.join(root_path, 'ogbg_molpcba/raw', 'graph-label.csv.gz'), compression='gzip', header = None).values
-
-        #### get the official train_val_test split
+        dataset = GraphDataset(name='ogbg-moltox21', root=root_path)
         split_idx = dataset.get_idx_split()
-        #### get training lable for task_0
-        train_labels = labels[split_idx["train"]][:,0]
+        train_dataset = ChemicalDataset(dataset[split_idx["train"]], class_id=0)
 
-        #### remove samples which have 'nan' as their labels
-        not_nan = ~np.isnan(train_labels)
-        train_labels = train_labels[not_nan]
-        train_dataset = dataset[split_idx["train"]][not_nan]
         eval_datasets = []
         for split in splits:
             if split == 'val':
-                eval_datasets.append(train_dataset)
+                eval_datasets.append(ChemicalDataset(dataset[split_idx["valid"]], class_id=0))
             elif split == 'test':
-                eval_datasets.append(dataset[split_idx["test"]][~np.isnan(labels[split_idx["test"]][:,0] )])
+                eval_datasets.append(ChemicalDataset(dataset[split_idx["test"]], class_id=0))
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
-        return train_dataset, eval_datasets, train_labels
+        return train_dataset, eval_datasets
+
+    elif name == "ogbg-molmuv":
+        import os
+        import torch.serialization
+        try:
+            from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
+            from torch_geometric.data.storage import GlobalStorage
+            torch.serialization.add_safe_globals([DataEdgeAttr, DataTensorAttr, GlobalStorage])
+        except ImportError:
+            pass
+
+        dataset = GraphDataset(name='ogbg-molmuv', root=root_path)
+        split_idx = dataset.get_idx_split()
+        train_dataset = ChemicalDataset(dataset[split_idx["train"]], class_id=1)
+
+        eval_datasets = []
+        for split in splits:
+            if split == 'val':
+                eval_datasets.append(ChemicalDataset(dataset[split_idx["valid"]], class_id=1))
+            elif split == 'test':
+                eval_datasets.append(ChemicalDataset(dataset[split_idx["test"]], class_id=1))
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        return train_dataset, eval_datasets
+
+    elif name == "ogbg-molpcba":
+        import os
+        import torch.serialization
+        try:
+            from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
+            from torch_geometric.data.storage import GlobalStorage
+            torch.serialization.add_safe_globals([DataEdgeAttr, DataTensorAttr, GlobalStorage])
+        except ImportError:
+            pass
+
+        dataset = GraphDataset(name='ogbg-molpcba', root=root_path)
+        split_idx = dataset.get_idx_split()
+        train_dataset = ChemicalDataset(dataset[split_idx["train"]], class_id = 0)
+
+        eval_datasets = []
+        for split in splits:
+            if split == 'val':
+                eval_datasets.append(ChemicalDataset(dataset[split_idx["valid"]], class_id = 0))
+            elif split == 'test':
+                eval_datasets.append(ChemicalDataset(dataset[split_idx["test"]], class_id = 0))
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        return train_dataset, eval_datasets
 
     elif name == "rip":
         train_df = pd.read_parquet("hf://datasets/ShantanuT01/RIP-Dataset/train.parquet")

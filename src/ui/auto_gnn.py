@@ -134,7 +134,7 @@ def main():
     eval_splits    = dataset_cfg.get("eval_splits", ["val"])
 
     logger.info(f"Loading train and {eval_splits} splits of dataset: {dataset_name}")
-    train_dataset, eval_datasets, train_labels = load_dataset(
+    train_dataset, eval_datasets = load_dataset(
         dataset_name, splits=eval_splits, **dataset_kwargs
     )
 
@@ -204,7 +204,6 @@ def main():
             model_cfg     = model_cfg,
             train_dataset = train_dataset,
             eval_dataset  = eval_datasets if eval_datasets else None,
-            train_labels  = train_labels,
             metric        = metric_fn,
             callbacks     = [CLICallback()],
             decay_epochs  = decay_epochs,
