@@ -139,10 +139,6 @@ class mAPLossSpace:
                 "default" : 0.001,
                 "log": True
             },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
-            },
             "momentum" : {
                 "val" : (0.8, 0.99),
                 "default" : 0.9
@@ -175,10 +171,6 @@ class pAUC_CVaR_LossSpace:
                 "val": (0.0001, 0.1),
                 "default" : 0.1,
                 "log": True
-            },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
             },
             "weight_decay" : {
                 "val" : (0.0, 0.0001),
@@ -216,10 +208,6 @@ class MultiLabelpAUC_CVaR_LossSpace:
                 "default" : 0.1,
                 "log": True
             },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
-            },
             "weight_decay" : {
                 "val" : (0.0, 0.0001),
                 "default" : 1e-5
@@ -255,10 +243,6 @@ class pAUC_DRO_LossSpace:
                 "val": (0.0001, 0.1),
                 "default" : 0.001,
                 "log": True
-            },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
             },
             "momentum" : {
                 "val" : (0.8, 0.99),
@@ -301,10 +285,6 @@ class MultiLabelpAUC_DRO_LossSpace:
                 "default" : 0.001,
                 "log": True
             },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
-            },
             "momentum" : {
                 "val" : (0.8, 0.99),
                 "default" : 0.9
@@ -345,10 +325,6 @@ class tpAUC_KL_LossSpace:
                 "val": (0.0001, 0.1),
                 "default" : 0.1,
                 "log": True
-            },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
             },
             "momentum" : {
                 "val" : (0.8, 0.99),
@@ -448,10 +424,6 @@ class MultiLabeltpAUC_KL_LossSpace:
                 "default" : 0.1,
                 "log": True
             },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
-            },
             "momentum" : {
                 "val" : (0.8, 0.99),
                 "default" : 0.9
@@ -499,10 +471,6 @@ class NDCGLossSpace:
                 "default" : 0.1,
                 "log": True
             },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
-            },
             "momentum" : {
                 "val" : (0.8, 0.99),
                 "default" : 0.9
@@ -548,10 +516,6 @@ class SGDSpace:
                 "default" : 0.1,
                 "log": True
             },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
-            },
             "momentum" : {
                 "val" : [0, 0.9],
                 "default" : 0
@@ -575,10 +539,6 @@ class AdamSpace:
                 "val": (0.0001, 0.1),
                 "default" : 0.001,
                 "log": True
-            },
-            "epoch_decay" : {
-                "val" : (0.0, 0.01),
-                "default" : 0.0
             },
             "weight_decay" : {
                 "val" : (0.0, 0.0001),
