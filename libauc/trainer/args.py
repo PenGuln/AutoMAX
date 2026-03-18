@@ -24,6 +24,7 @@ class TrainingArguments:
                 self.decay_epochs[i] = int(self.decay_epochs[i] * self.epochs)
         self.num_workers = kwargs.pop("num_workers")
         self.output_path = kwargs.pop("output_path")
+        self.num_tasks = kwargs.pop("num_tasks")
         
         # Checkpoint parameters
         self.resume_from_checkpoint = kwargs.pop("resume_from_checkpoint")

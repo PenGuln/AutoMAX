@@ -26,9 +26,14 @@ class IndexedDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
+        # Unpack task_id if TriSampler is being used
+        task_id = None
+        if isinstance(idx, (tuple, list)):
+            idx, task_id = idx
+            
         image, _ = self.dataset[idx]
         target = self.targets[idx]
-        return image, target, idx
+        return image, target, (idx, task_id) if task_id is not None else idx
 
 class ImageDataset(Dataset):
     def __init__(self, images, targets, image_size=32, crop_size=30, mode='train'):

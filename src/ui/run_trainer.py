@@ -13,6 +13,7 @@ import torch
 import yaml
 from libauc.trainer import TrainingArguments, Trainer, CLICallback
 
+from ..config.args import parse_defaultconfig
 from ..data.datasets import load_dataset
 from .helpers import build_metric
 
@@ -136,16 +137,18 @@ def main():
     
     logger.info(f"Number of tasks: {num_tasks}")
 
-    if num_tasks >= 2:
+    if num_tasks >= 3:
         multilable = True
     else:
         multilable = False
 
     # 5. Build metric function
     metric_fn = build_metric(metric_names, metric_kwargs)
-
-    optimizer_kwargs=training_cfg.get("optimizer_kwargs", {})
-    loss_kwargs=training_cfg.get("loss_kwargs", {})
+    
+    optimizer_kwargs = training_cfg.get("optimizer_kwargs", {})
+    loss_kwargs = training_cfg.get("loss_kwargs", {})
+    default_optimizer_config = parse_defaultconfig(training_cfg["optimizer"], multilable, optimizer_kwargs)["optimizer"]
+    default_loss_config = parse_defaultconfig(training_cfg["loss"], multilable, loss_kwargs)["loss"]
     if multilable:
         loss_kwargs["num_labels"] = num_tasks
 
@@ -153,9 +156,9 @@ def main():
     #    trainset/evalsets store human-readable identifiers; the actual
     #    Dataset objects are passed separately to Trainer below.
     train_args = TrainingArguments(
-        optimizer=training_cfg["optimizer"],
+        optimizer=default_optimizer_config["type"],
         optimizer_kwargs=optimizer_kwargs,
-        loss=training_cfg["loss"],
+        loss=default_loss_config["type"],
         loss_kwargs=loss_kwargs,
         SEED=training_cfg.get("SEED", 42),
         batch_size=training_cfg.get("batch_size", 128),
@@ -165,6 +168,7 @@ def main():
         decay_epochs=training_cfg.get("decay_epochs", []),
         num_workers=training_cfg.get("num_workers", 2),
         output_path=training_cfg.get("output_path", "./output"),
+        num_tasks=num_tasks,
         resume_from_checkpoint=training_cfg.get("resume_from_checkpoint", True),
         save_checkpoint_every=training_cfg.get("save_checkpoint_every", 5),
         project_name=training_cfg.get("project_name", "libauc"),

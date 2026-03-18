@@ -171,6 +171,7 @@ def main():
             decay_epochs    = decay_epochs,
             num_workers     = training_cfg.get("num_workers", 2),
             output_path     = training_cfg.get("output_path", "./output"),
+            num_tasks       = 1,
             resume_from_checkpoint  = training_cfg.get("resume_from_checkpoint", True),
             save_checkpoint_every   = training_cfg.get("save_checkpoint_every", 5),
             project_name    = training_cfg.get("project_name", "libauc"),

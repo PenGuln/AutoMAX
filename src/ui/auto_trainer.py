@@ -140,7 +140,7 @@ def main():
     
     logger.info(f"Number of tasks: {num_tasks}")
     
-    if num_tasks >= 2:
+    if num_tasks >= 3:
         multilable = True
     else:
         multilable = False
@@ -172,6 +172,7 @@ def main():
             decay_epochs=training_cfg.get("decay_epochs", []),
             num_workers=training_cfg.get("num_workers", 2),
             output_path=training_cfg.get("output_path", "./output"),
+            num_tasks=num_tasks,
             resume_from_checkpoint=training_cfg.get("resume_from_checkpoint", True),
             save_checkpoint_every=training_cfg.get("save_checkpoint_every", 5),
             project_name=training_cfg.get("project_name", "libauc"),

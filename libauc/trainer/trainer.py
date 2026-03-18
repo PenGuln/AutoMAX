@@ -2,7 +2,7 @@ import logging
 import torch
 import libauc
 import numpy as np
-from libauc.sampler import DualSampler
+from libauc.sampler import DualSampler, TriSampler
 import os
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, Mapping
 from torch.utils.data import Dataset
@@ -57,8 +57,11 @@ class Trainer:
                 self.evalloaders.append(self._get_eval_dataloader(dataset, self.args))
         
         # Calculate dataset statistics
-        self.data_len = self.sampler.pos_len + self.sampler.neg_len
-        # print(self.data_len)
+        if isinstance(self.sampler.pos_len, list):
+            self.data_len = self.sampler.pos_len[0] + self.sampler.neg_len[0]
+        else:
+            self.data_len = self.sampler.pos_len + self.sampler.neg_len
+
         self.pos_len = self.sampler.pos_len
         self.neg_len = self.sampler.neg_len
 
@@ -191,7 +194,10 @@ class Trainer:
 
     def _get_train_dataloader(self, train_args: TrainingArguments):
         """Create training data loader with dual sampling."""
-        sampler = DualSampler(self.train_dataset, train_args.batch_size, sampling_rate=train_args.sampling_rate)
+        if train_args.num_tasks >= 3:
+            sampler = TriSampler(self.train_dataset, train_args.batch_size, sampling_rate=train_args.sampling_rate)
+        else:
+            sampler = DualSampler(self.train_dataset, train_args.batch_size, sampling_rate=train_args.sampling_rate)
         trainloader = torch.utils.data.DataLoader(
             self.train_dataset, 
             batch_size=train_args.batch_size, 
@@ -239,7 +245,7 @@ class Trainer:
             for data, targets, index in self.trainloader:
                 self.callback_handler.on_step_begin(self.args, self.state)
 
-                data, targets, index = data.cuda(), targets.cuda(), index.cuda()
+                data, targets = data.cuda(), targets.cuda()
                 y_pred = model(data)
                 
                 # Compute loss
@@ -250,7 +256,11 @@ class Trainer:
                     loss = self.loss_fn(y_pred, targets)
                 else:
                     y_pred = torch.sigmoid(y_pred)
-                    loss = self.loss_fn(y_pred, targets, index=index)
+                    if isinstance(index, list):  # Multilable
+                        index, task_id = index
+                        loss = self.loss_fn(y_pred, targets, index=index.cuda(), task_id = task_id)
+                    else:
+                        loss = self.loss_fn(y_pred, targets, index=index.cuda())
                 
                 # Optimizer step
                 self.optimizer.zero_grad()
