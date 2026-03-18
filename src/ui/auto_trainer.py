@@ -132,7 +132,7 @@ def main():
     logger.info(f"Loading train and {eval_splits} split of dataset: {dataset_name}")
     train_dataset, eval_datasets = load_dataset(dataset_name, splits=eval_splits, **dataset_kwargs)
 
-    labels = np.array(train_dataset.targets)
+    labels = np.array(train_dataset.targets).squeeze()
     if len(labels.shape) == 1:
         num_tasks = len(np.unique(labels)) 
     else: 
