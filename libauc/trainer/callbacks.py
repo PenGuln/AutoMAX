@@ -290,13 +290,14 @@ class CLICallback(TrainerCallback):
     # ------------------------------------------------------------------
     # Callback events
     # ------------------------------------------------------------------
-
     def on_train_begin(self, args: TrainingArguments, state: TrainerState, **kwargs):
-        """Event called at the beginning of training."""
-        # Initialise wandb regardless of verbosity
         try:
             import wandb
-            wandb.init(project=args.project_name, name=args.experiment_name, reinit=True)
+            config = {
+                k: v for k, v in vars(args).items()
+                if not k.startswith("_")
+            }
+            wandb.init(project=args.project_name, name=args.experiment_name, reinit=True, config=config)
         except ImportError:
             logger.warning("wandb not installed; skipping wandb logging")
             self._use_wandb = False
@@ -304,14 +305,13 @@ class CLICallback(TrainerCallback):
         if args.verbose == 0:
             return
 
-        optimizer = kwargs.get("optimizer")
-        lr_str = f"{optimizer.lr:.6f}" if optimizer else "N/A"
-        print(f"Epochs:        {state.total_epoch}")
-        print(f"Batch size:    {args.batch_size}")
-        print(f"Learning rate: {lr_str}")
-        print(f"Loss:          {args.loss}")
-        print(f"Optimizer:     {args.optimizer}")
-        print("-" * 50)
+        import pprint
+
+        config = {k: v for k, v in vars(args).items() if not k.startswith("_")}
+
+        print("=" * 60)
+        pprint.pprint(config, indent=2, sort_dicts=False)
+        print("=" * 60)
 
     def on_epoch_begin(self, args: TrainingArguments, state: TrainerState, **kwargs):
         """Event called at the beginning of an epoch."""
