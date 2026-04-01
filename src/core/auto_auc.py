@@ -6,6 +6,7 @@ import sys
 import logging
 from typing import Dict, Any, Optional
 from smac import HyperparameterOptimizationFacade, Scenario
+from smac.initial_design import DefaultInitialDesign
 from ..config.args import AutoMAXConfigration
 import shutil
 from smac.runhistory import TrialInfo, TrialValue
@@ -54,11 +55,14 @@ class AutoMAX:
             deterministic=config.deterministic,
             seed=config.SEED
         )
+
+        initial_design = DefaultInitialDesign(scenario)
         
         # Initialize SMAC
         self.smac = HyperparameterOptimizationFacade(
             scenario,
             self.train,
+            initial_design=initial_design,
             overwrite=config.overwrite,
         )
 
