@@ -395,14 +395,14 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
 
     elif name == "melanoma":
         from libauc.datasets import Melanoma
-
-        train_dataset = Melanoma(root='./datasets/256x256/', is_test=False, test_size=0.2)
+        root = os.path.join(root_path, "melanoma")
+        train_dataset = Melanoma(root=root, is_test=False, test_size=0.2)
         eval_datasets = []
         for split in splits:
             if split == 'val':
-                eval_datasets.append(Melanoma(root='./datasets/256x256/', is_test=False, test_size=0.2))
+                eval_datasets.append(Melanoma(root=root, is_test=False, test_size=0.2))
             elif split == 'test':
-                eval_datasets.append(Melanoma(root='./datasets/256x256/', is_test=True, test_size=0.2))
+                eval_datasets.append(Melanoma(root=root, is_test=True, test_size=0.2))
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
