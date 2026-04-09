@@ -112,7 +112,7 @@ class APLossSpace:
             },
             "weight_decay" : {
                 "val" : (0.0, 0.0001),
-                "default" : 1e-5
+                "default" : 2.0e-4
             },
         }
     }
@@ -121,11 +121,11 @@ class APLossSpace:
         "space" : {
             "gamma" :{
                 "val" : (0.0, 1.0),
-                "default" : 0.9
+                "default" : 0.1
             },
             "margin" : {
                 "val" : [0.6, 0.8, 1.0],
-                "default" : 1.0
+                "default" : 0.6
             }
         }
     }
@@ -145,7 +145,7 @@ class mAPLossSpace:
             },
             "weight_decay" : {
                 "val" : (0.0, 0.0001),
-                "default" : 1e-5
+                "default" : 2.0e-4
             },
         }
     }
@@ -154,11 +154,11 @@ class mAPLossSpace:
         "space" : {
             "gamma" :{
                 "val" : (0.0, 1.0),
-                "default" : 0.9
+                "default" : 0.1
             },
             "margin" : {
                 "val" : [0.6, 0.8, 1.0],
-                "default" : 1.0
+                "default" : 0.6
             }
         }
     }
@@ -250,7 +250,7 @@ class pAUC_DRO_LossSpace:
             },
             "weight_decay" : {
                 "val" : (0.0, 0.0001),
-                "default" : 1e-5
+                "default" : 2.0e-4
             }
         }
     }
@@ -262,11 +262,11 @@ class pAUC_DRO_LossSpace:
             },
             "gamma": {
                 "val" : (0.0, 1.0),
-                "default" : 0.9
+                "default" : 0.1
             },
             "margin" : {
                 "val" : [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
-                "default" : 1.0
+                "default" : 0.6
             },
             "Lambda":{
                 "val" : (0.1, 10.0),
@@ -291,7 +291,7 @@ class MultiLabelpAUC_DRO_LossSpace:
             },
             "weight_decay" : {
                 "val" : (0.0, 0.0001),
-                "default" : 1e-5
+                "default" : 2.0e-4
             }
         }
     }
@@ -303,11 +303,11 @@ class MultiLabelpAUC_DRO_LossSpace:
             },
             "gamma": {
                 "val" : (0.0, 1.0),
-                "default" : 0.9
+                "default" : 0.1
             },
             "margin" : {
                 "val" : [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
-                "default" : 1.0
+                "default" : 0.6
             },
             "Lambda":{
                 "val" : (0.1, 10.0),
@@ -323,7 +323,7 @@ class tpAUC_KL_LossSpace:
         "space" : {
             "lr" : {
                 "val": (0.0001, 0.1),
-                "default" : 0.1,
+                "default" : 1.0e-3,
                 "log": True
             },
             "momentum" : {
@@ -332,7 +332,7 @@ class tpAUC_KL_LossSpace:
             },
             "weight_decay" : {
                 "val" : (0.0, 0.0001),
-                "default" : 1e-5
+                "default" : 2.0e-4
             }
         }
     }
@@ -349,7 +349,7 @@ class tpAUC_KL_LossSpace:
             },
             "gammas": {
                 "val" : [(0.1, 0.1), (0.5, 0.5), (0.9, 0.9)],
-                "default" : (0.9, 0.9)
+                "default" : (0.5, 0.5)
             },
             "margin" : {
                 "val" : [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
@@ -357,7 +357,7 @@ class tpAUC_KL_LossSpace:
             },
             "Lambda":{
                 "val" : (0.1, 10.0),
-                "default" : 1.0,
+                "default" : 0.5,
                 "log" : True
             }
         }
@@ -421,7 +421,7 @@ class MultiLabeltpAUC_KL_LossSpace:
         "space" : {
             "lr" : {
                 "val": (0.0001, 0.1),
-                "default" : 0.1,
+                "default" : 1.0e-3,
                 "log": True
             },
             "momentum" : {
@@ -430,7 +430,7 @@ class MultiLabeltpAUC_KL_LossSpace:
             },
             "weight_decay" : {
                 "val" : (0.0, 0.0001),
-                "default" : 1e-5
+                "default" : 2.0e-4
             }
         }
     }
@@ -447,7 +447,7 @@ class MultiLabeltpAUC_KL_LossSpace:
             },
             "gammas": {
                 "val" : [(0.1, 0.1), (0.5, 0.5), (0.9, 0.9)],
-                "default" : (0.9, 0.9)
+                "default" : (0.5, 0.5)
             },
             "margin" : {
                 "val" : [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
@@ -455,7 +455,7 @@ class MultiLabeltpAUC_KL_LossSpace:
             },
             "Lambda":{
                 "val" : (0.1, 10.0),
-                "default" : 1.0,
+                "default" : 0.5,
                 "log" : True
             }
         }
