@@ -7,6 +7,7 @@ from libauc.utils import ImbalancedDataGenerator
 import pandas as pd
 from ogb.graphproppred import PygGraphPropPredDataset
 import torch
+import os
 
 # ---------------------------------------------------------------------------
 # Dataset loading
@@ -71,7 +72,7 @@ class ChemicalDataset(Dataset):
         assert(len(dataset.data.y.shape) == 2)
         y = dataset.data.y[indices, class_id]
         not_nan = ~np.isnan(y.numpy())  # shape matches len(dataset)
-        self.targets = y[not_nan]
+        self.targets = y[not_nan].float()
         self.dataset = dataset[not_nan]
         try:
             tmp=np.array(self.targets)
@@ -109,10 +110,100 @@ class TextDataset(Dataset):
         text_inputs = self.texts[index]
         targets = self.targets[index]
         return text_inputs, targets, index    
-    
 
     def __len__(self):
         return self.len
+
+class MedicalImageCSVDataset(Dataset):
+    """
+    General-purpose CSV-backed medical image dataset.
+
+    Expects a CSV with at least an image path column and a binary label column.
+    Image paths in the CSV may be relative (resolved against ``image_root``) or
+    absolute.
+
+    Args:
+        csv_path:   Path to the metadata CSV.
+        image_root: Directory that image paths are resolved against when they
+                    are not absolute.  Ignored for absolute paths.
+        image_col:  Column name containing the image filename / path.
+        label_col:  Column name containing the binary label (0 / 1).
+        transform:  torchvision transform applied to each PIL image.
+    """
+
+    def __init__(
+        self,
+        csv_path: str,
+        image_root: str,
+        image_col: str,
+        label_col: str,
+        transform,
+    ):
+        df = pd.read_csv(csv_path)
+        # Drop rows with missing labels
+        df = df.dropna(subset=[label_col]).reset_index(drop=True)
+
+        self.image_root = image_root
+        self.image_col = image_col
+        self.transform = transform
+        self.targets = df[label_col].to_numpy().astype(np.float32)
+        self.image_paths = df[image_col].tolist()
+
+        pos = int((self.targets == 1).sum())
+        total = len(self.targets)
+        print(f"[MedicalImageCSVDataset] positive: {pos} | rate: {pos/total:.4f}")
+
+    def __len__(self):
+        return len(self.targets)
+
+    def __getitem__(self, idx):
+        rel = self.image_paths[idx]
+        path = rel if os.path.isabs(rel) else os.path.join(self.image_root, rel)
+        image = Image.open(path).convert("RGB")
+        if self.transform is not None:
+            image = self.transform(image)
+        return image, self.targets[idx], idx
+
+
+# ---------------------------------------------------------------------------
+# Shared transform factories
+# ---------------------------------------------------------------------------
+def _medical_train_transform(image_size: int = 224) -> transforms.Compose:
+    return transforms.Compose([
+        transforms.Resize((image_size, image_size), antialias=True),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.RandomRotation(10),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225]),
+    ])
+
+
+def _medical_test_transform(image_size: int = 224) -> transforms.Compose:
+    return transforms.Compose([
+        transforms.Resize((image_size, image_size), antialias=True),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225]),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# OGB graph dataset helpers (shared by ogbg-molhiv and existing datasets)
+# ---------------------------------------------------------------------------
+def _safe_import_pyg_globals():
+    """Register PyG safe globals for torch.serialization when available."""
+    import torch.serialization
+    try:
+        from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
+        from torch_geometric.data.storage import GlobalStorage
+        torch.serialization.add_safe_globals(
+            [DataEdgeAttr, DataTensorAttr, GlobalStorage]
+        )
+    except ImportError:
+        pass
 
 def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
     """
@@ -146,6 +237,7 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
+
     elif name == "cifar10":
         from libauc.datasets import CIFAR10
         # load data as numpy arrays
@@ -168,6 +260,7 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
+
     elif name == "pneumoniamnist":
         from medmnist import PneumoniaMNIST
         train_transform = transforms.Compose([
@@ -190,6 +283,7 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
+
     elif name == "breastmnist":
         from medmnist import BreastMNIST
         train_transform = transforms.Compose([
@@ -208,6 +302,7 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets
+
     elif name == "chestmnist":
         from medmnist import ChestMNIST
         train_transform = transforms.Compose([
@@ -229,15 +324,7 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
         return train_dataset, eval_datasets
 
     elif name == "ogbg-moltox21":
-        import os
-        import torch.serialization
-        try:
-            from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
-            from torch_geometric.data.storage import GlobalStorage
-            torch.serialization.add_safe_globals([DataEdgeAttr, DataTensorAttr, GlobalStorage])
-        except ImportError:
-            pass
-
+        _safe_import_pyg_globals()
         dataset = GraphDataset(name='ogbg-moltox21', root=root_path)
         split_idx = dataset.get_idx_split()
         train_dataset = ChemicalDataset(dataset[split_idx["train"]], class_id=0)
@@ -253,15 +340,7 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
         return train_dataset, eval_datasets
 
     elif name == "ogbg-molmuv":
-        import os
-        import torch.serialization
-        try:
-            from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
-            from torch_geometric.data.storage import GlobalStorage
-            torch.serialization.add_safe_globals([DataEdgeAttr, DataTensorAttr, GlobalStorage])
-        except ImportError:
-            pass
-
+        _safe_import_pyg_globals()
         dataset = GraphDataset(name='ogbg-molmuv', root=root_path)
         split_idx = dataset.get_idx_split()
         train_dataset = ChemicalDataset(dataset[split_idx["train"]], class_id=1)
@@ -277,15 +356,7 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
         return train_dataset, eval_datasets
 
     elif name == "ogbg-molpcba":
-        import os
-        import torch.serialization
-        try:
-            from torch_geometric.data.data import DataEdgeAttr, DataTensorAttr
-            from torch_geometric.data.storage import GlobalStorage
-            torch.serialization.add_safe_globals([DataEdgeAttr, DataTensorAttr, GlobalStorage])
-        except ImportError:
-            pass
-
+        _safe_import_pyg_globals()
         dataset = GraphDataset(name='ogbg-molpcba', root=root_path)
         split_idx = dataset.get_idx_split()
         train_dataset = ChemicalDataset(dataset[split_idx["train"]], class_id = 0)
@@ -296,6 +367,104 @@ def load_dataset(name: str, splits: List[str], **kwargs) -> Dataset:
                 eval_datasets.append(ChemicalDataset(dataset[split_idx["valid"]], class_id = 0))
             elif split == 'test':
                 eval_datasets.append(ChemicalDataset(dataset[split_idx["test"]], class_id = 0))
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        return train_dataset, eval_datasets
+
+    # -----------------------------------------------------------------------
+    # OGB-HIV  (ogbg-molhiv)
+    # Binary: active (1) vs inactive (0) against HIV replication.
+    # Single-task dataset — class_id is always 0.
+    # Scaffold split provided by OGB.
+    # -----------------------------------------------------------------------
+    elif name == "ogbg-molhiv":
+        _safe_import_pyg_globals()
+        dataset = GraphDataset(name='ogbg-molhiv', root=root_path)
+        split_idx = dataset.get_idx_split()
+        train_dataset = ChemicalDataset(dataset[split_idx["train"]], class_id=0)
+
+        eval_datasets = []
+        for split in splits:
+            if split == 'val':
+                eval_datasets.append(ChemicalDataset(dataset[split_idx["valid"]], class_id=0))
+            elif split == 'test':
+                eval_datasets.append(ChemicalDataset(dataset[split_idx["test"]], class_id=0))
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        return train_dataset, eval_datasets
+
+    elif name == "melanoma":
+        from libauc.datasets import Melanoma
+
+        train_dataset = Melanoma(root='./datasets/256x256/', is_test=False, test_size=0.2)
+        eval_datasets = []
+        for split in splits:
+            if split == 'val':
+                eval_datasets.append(Melanoma(root='./datasets/256x256/', is_test=False, test_size=0.2))
+            elif split == 'test':
+                eval_datasets.append(Melanoma(root='./datasets/256x256/', is_test=True, test_size=0.2))
+            else:
+                raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
+        return train_dataset, eval_datasets
+    
+    # -----------------------------------------------------------------------
+    # DDSM+  (CBIS-DDSM — Curated Breast Imaging Subset of DDSM)
+    # Binary mammogram classification: malignant (1) vs benign/normal (0).
+    # Expected directory layout:
+    #   <root_path>/ddsm/
+    #       train.csv          — columns: image_path, pathology  (or custom via kwargs)
+    #       test.csv
+    #       <image directories referenced by image_path column>
+    # CBIS-DDSM CSVs use "pathology" as label: MALIGNANT=1, BENIGN/BENIGN_WITHOUT_CALLBACK=0.
+    # A "pathology_binary" column is created automatically if not present.
+    # kwargs:
+    #   image_size  (int,  default 224)
+    #   image_col   (str,  default "image_path")
+    #   label_col   (str,  default "pathology_binary")
+    #   malignant_value (str, default "MALIGNANT") — raw label treated as positive
+    # -----------------------------------------------------------------------
+    elif name == "ddsm" or name == "ddsm+":
+        image_size       = kwargs.get("image_size",       224)
+        image_col        = kwargs.get("image_col",        "image_path")
+        label_col        = kwargs.get("label_col",        "pathology_binary")
+        malignant_value  = kwargs.get("malignant_value",  "MALIGNANT")
+        data_root        = os.path.join(root_path, "ddsm")
+
+        def _load_ddsm_csv(csv_path: str) -> pd.DataFrame:
+            df = pd.read_csv(csv_path)
+            # Auto-binarise "pathology" column if the target label column is absent
+            if label_col not in df.columns and "pathology" in df.columns:
+                df[label_col] = (df["pathology"].str.upper() == malignant_value.upper()).astype(np.float32)
+            return df
+
+        train_df = _load_ddsm_csv(os.path.join(data_root, "train.csv"))
+        train_dataset = MedicalImageCSVDataset(
+            csv_path   = os.path.join(data_root, "train.csv"),
+            image_root = data_root,
+            image_col  = image_col,
+            label_col  = label_col,
+            transform  = _medical_train_transform(image_size),
+        )
+        # Patch: re-apply binarisation to the already-loaded dataframe
+        train_df = _load_ddsm_csv(os.path.join(data_root, "train.csv"))
+        train_dataset.targets    = train_df[label_col].to_numpy().astype(np.float32)
+        train_dataset.image_paths = train_df[image_col].tolist()
+
+        eval_datasets = []
+        for split in splits:
+            if split in ('val', 'test'):
+                csv_name = "test.csv" if split == 'test' else "val.csv"
+                ev_df = _load_ddsm_csv(os.path.join(data_root, csv_name))
+                ev_ds = MedicalImageCSVDataset(
+                    csv_path   = os.path.join(data_root, csv_name),
+                    image_root = data_root,
+                    image_col  = image_col,
+                    label_col  = label_col,
+                    transform  = _medical_test_transform(image_size),
+                )
+                ev_ds.targets     = ev_df[label_col].to_numpy().astype(np.float32)
+                ev_ds.image_paths = ev_df[image_col].tolist()
+                eval_datasets.append(ev_ds)
             else:
                 raise NotImplementedError(f"Split '{split}' is not yet implemented for dataset '{name}'.")
         return train_dataset, eval_datasets

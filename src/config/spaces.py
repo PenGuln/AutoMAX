@@ -550,3 +550,10 @@ class AdamSpace:
         "type" : "CrossEntropyLoss",
         "space" : {}
     }
+
+class BCELossSpace:
+    loss = {
+        "type" : "BCELoss",
+        "space" : {}
+    }
+    optimizer = {}

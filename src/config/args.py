@@ -153,6 +153,8 @@ def parse_defaultconfig(type_name, multilable = False, kwargs = {}):
         from .spaces import SGDSpace as Sp
     elif type_name in ['Adam']:
         from .spaces import AdamSpace as Sp
+    elif type_name in ['BCELoss']:
+        from .spaces import BCELossSpace as Sp
     else:
         raise ValueError(f"unsupported loss {type_name}")
     
