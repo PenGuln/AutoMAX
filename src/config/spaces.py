@@ -266,7 +266,7 @@ class pAUC_DRO_LossSpace:
             },
             "margin" : {
                 "val" : [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
-                "default" : 0.6
+                "default" : 0.7
             },
             "Lambda":{
                 "val" : (0.1, 10.0),
@@ -307,7 +307,7 @@ class MultiLabelpAUC_DRO_LossSpace:
             },
             "margin" : {
                 "val" : [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
-                "default" : 0.6
+                "default" : 0.7
             },
             "Lambda":{
                 "val" : (0.1, 10.0),
