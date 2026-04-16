@@ -1,7 +1,3 @@
-"""
-Training callbacks for AutoAUC framework.
-"""
-
 import logging
 import sys
 from typing import Any, Dict, List, Optional

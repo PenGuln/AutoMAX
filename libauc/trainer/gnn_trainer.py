@@ -26,29 +26,7 @@ _GNN_REGISTRY = {
     "pna":        "PNA",
 }
 
-
-# ---------------------------------------------------------------------------
-# GNNTrainer
-# ---------------------------------------------------------------------------
-
 class GNNTrainer(Trainer):
-    """
-    Trainer subclass for graph-level classification/regression with GNN
-    models from libauc.models.
-
-    Differences from the base Trainer
-    ----------------------------------
-    * Model is built via build_gnn_model() (libauc.models GNN classes).
-    * Uses torch_geometric.loader.DataLoader instead of the standard one.
-    * Targets come from batch.y[:, 0]  (OGB / multi-task convention).
-    * Sample indices come from batch.idx for AUC-style losses.
-    * Forward-pass signature is selected automatically via supports_edge_attr:
-        False → model(x, edge_index, batch)
-        True  → model(x, edge_index, edge_attr, batch)
-    * Supports learning-rate decay at arbitrary epochs (decay_epochs).
-    * Optionally evaluates the training split each epoch without DualSampler
-      bias (train_eval_dataset).
-    """
 
     def __init__(
         self,

@@ -14,12 +14,8 @@ from .callbacks import CallbackHandler, TrainerCallback, TrainerState
 logger = logging.getLogger(__name__)
 
 
-
-
 class Trainer:
     """
-    Main trainer class for AutoAUC framework.
-    
     Handles model training, evaluation, and callback management.
     """
     
